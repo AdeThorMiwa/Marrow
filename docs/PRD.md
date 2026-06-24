@@ -64,18 +64,19 @@ A new user's garden is empty. This is intentional, not an error state. The frami
 
 ### Tending
 
-Even in garden mode, open topics exist in the periphery. Spaced repetition cards come due. Topic queues accumulate new content.
+Even in garden mode, open Rabbitholes exist in the periphery. Spaced repetition cards come due. Rabbithole frontiers accumulate new content.
 
-Tending is **surfaced, not pushed.** The garden shows you quietly: cards due, topic queue status. You act on it or ignore it. It does not nag.
+Tending is **surfaced, not pushed.** The garden shows you quietly: cards due, Rabbithole frontier status. You act on it or ignore it. It does not nag.
 
-### Active Topic Lens
+### Topic-Aware Feed
 
-If you have an active topic, the garden feed has two views:
+There is one feed. It is not split into modes. Topic awareness is expressed through ordering, not filtering.
 
-- **Everything** — the full chronological feed from all sources
-- **Topic lens** — the feed filtered toward your active topic, surfacing relevant items
+When you have an active Rabbithole, content relevant to it surfaces higher in the feed. Relevance is determined by embedding similarity between the content and your active Rabbithole. The feed remains roughly chronological — recency still matters — but relevant items rise within that order rather than being hidden behind a mode switch.
 
-You can switch between these with a single gesture. Items in the full feed that are relevant to your active topic carry a subtle visual signal.
+Watching Rabbitholes also influence ordering, with lower weight than the active one. Content with no Rabbithole relevance appears at its natural chronological position.
+
+The Rabbithole — the structured inquiry space — is accessed directly, not through a filtered feed view. It is a separate surface: a graph you navigate, not a stream you scroll.
 
 ### Engagement Detection
 
@@ -87,23 +88,23 @@ Engagement is measured by a combination of signals:
 - Any highlight or flag made
 - Return visits to the same item
 
-When a cluster is detected, Marrow proposes a Deep Read at a natural pause point. The proposal is non-blocking, appears once per cluster per session, and disappears if dismissed. Dismissed means dismissed for that session.
+When a cluster is detected, Marrow proposes a Dive at a natural pause point. The proposal is non-blocking, appears once per cluster, and is suppressed for the same cluster if dismissed. A different cluster can still be proposed.
 
 ---
 
-## 5. The Deep Read
+## 5. The Dive
 
-Deep Read is the transitional state between casual garden browsing and full rabbithole mode. It is the moment the retention loop activates on a piece of content.
+A Dive is the transitional state between casual garden browsing and full Rabbithole mode. It is the moment the retention loop activates on a piece of content.
 
 ### Two Entry Points
 
 **System-proposed:** Marrow detects an engagement cluster and surfaces a proposal. User accepts or dismisses.
 
-**User-initiated:** At any point while reading an item, the user can manually trigger a Deep Read. No engagement detection required.
+**User-initiated:** At any point while reading an item, the user can manually trigger a Dive. No engagement detection required.
 
 ### What Activates
 
-When a Deep Read begins:
+When a Dive begins:
 - Passive capture becomes active — highlights and flags are now being recorded
 - Active retention mechanisms become available on demand
 - The loop begins listening from the start of the content, not the moment of activation — prior engagement in this item is backfilled where possible
@@ -136,17 +137,17 @@ Available on demand throughout consumption. Never surfaced automatically. You in
 
 ### Mid-Consumption Artifacts
 
-Everything produced during a Deep Read before completion — highlights, flags, spot comprehension responses, inline application responses, Socratic exchange transcripts — is saved. These artifacts are first-class citizens. They accumulate across sittings for long-form content. They inform the full retention loop at completion. Nothing is ephemeral.
+Everything produced during a Dive before completion — highlights, flags, spot comprehension responses, inline application responses, Socratic exchange transcripts — is saved. These artifacts are first-class citizens. They accumulate across sittings for long-form content. They inform the full retention loop at completion. Nothing is ephemeral.
 
 ### Declaring Completion
 
-For short-form content, completion may be implicit — you reach the end. For long-form content (books, papers), completion must be explicit — the user declares they are done. This declaration is the trigger for the full retention loop.
+Completion is always an explicit declaration — the user signals they are done. For text content the app surfaces a prompt when scroll depth reaches the end; for audio and video it prompts when playback reaches 100%. The prompt is a nudge, not a gate — the user still confirms. This declaration triggers the full retention loop.
 
 ---
 
 ## 6. The Retention Loop
 
-Runs at completion of a Deep Read. Informed by everything accumulated mid-consumption. The same loop applies regardless of whether the Deep Read completes as a standalone engagement or transitions into a topic rabbithole.
+Runs at completion of a Dive. Informed by everything accumulated mid-consumption. The same loop applies regardless of whether the Dive completes as a standalone engagement or transitions into a Rabbithole.
 
 ### Phase 1 — Gaps Analysis
 
@@ -189,7 +190,7 @@ Three types:
 - **Slow-burn** — shifts how you think over time. *"What belief or assumption does this put pressure on?"*
 - **Foundational** — changes what's possible to think. *"What does understanding this unlock that you couldn't reason about before?"*
 
-In a topic rabbithole, the application conversation has richer context — it can reference your library and synthesis. Prior conclusions you've reached in the topic can be surfaced and challenged.
+In a Rabbithole, the application conversation has richer context — it can reference your library and synthesis. Prior conclusions you've reached can be surfaced and challenged.
 
 The output is zero or more **action items** — things you articulate during the conversation that the AI recognises and extracts. Action items are pure output artifacts. They leave Marrow immediately via webhook. Marrow manages no lifecycle for them.
 
@@ -224,53 +225,53 @@ If you engage with it, the full Socratic session opens. If you dismiss it, you'r
 
 Two paths:
 
-**Complete** — artifacts and cards go to library and review pool. You return to the garden.
+**Complete** — artifacts, reflection, and cards go to the review pool. You return to the garden.
 
-**Go Deeper** — topic rabbithole initiates. The content becomes the first item in a new or existing topic.
+**Go Deeper** — a Rabbithole opens. The completed Dive's artifacts and reflection seed a new Rabbithole, or are added to an existing one if the subject matter overlaps.
 
 ---
 
-## 7. Rabbithole Mode — Topic
+## 7. Rabbithole Mode
 
-A topic is an ongoing area of inquiry. You're not just processing a single piece of content — you're building an accumulated understanding across many pieces over time. The artifact isn't any single item. It's a synthesis you're working toward.
+A Rabbithole is an ongoing area of inquiry. You're not just processing a single piece of content — you're building accumulated understanding across many pieces over time. The artifact isn't any single item. It's a synthesis you're working toward.
 
-### What a Topic Has
+### What a Rabbithole Has
 
-**Library** — everything you've processed that belongs to this topic. Your accumulated understanding.
+**Library** — everything you've processed that belongs to this Rabbithole. Your accumulated understanding, built from Dive artifacts across sessions.
 
 **Graph / Frontier** — the navigable space of what to explore next. The frontier and the graph are the same thing viewed differently: as navigation it's a graph, as a queue it's the frontier.
 
-**Synthesis** — the living document of what you're building. Starts empty. Grows across sessions.
+**Synthesis** — the living document of what you're building. Seeded from the first Dive's reflection. Grows across sessions.
 
-### Initiating a Topic
+### Opening a Rabbithole
 
-A topic can only be initiated from within a completed Deep Read — not declared upfront from the garden.
+A Rabbithole can only be opened from within a completed Dive — not declared upfront from the garden.
 
-If you try to create a topic that is meaningfully similar to an existing one, Marrow surfaces the existing topic and asks if you want to add to it instead. No duplicate topics, no fragmented knowledge.
+If you try to open a Rabbithole that is meaningfully similar to an existing one, Marrow surfaces the existing Rabbithole and asks if you want to add to it instead. No duplicate Rabbitholes, no fragmented knowledge.
 
-### Topic Lifecycle
+### Rabbithole Lifecycle
 
-**Active** — your current focus. One at a time. The garden's topic lens points here. Sessions have full structure.
+**Active** — your current focus. One at a time. The garden's relevance lens points here. Sessions have full structure.
 
-**Watching** — open but not your current focus. Cards still come due. Frontier still accumulates. Up to five watching topics simultaneously.
+**Watching** — open but not your current focus. Cards still come due. Frontier still accumulates. Up to five watching Rabbitholes simultaneously.
 
 **Paused** — explicitly set aside. Cards pause. Frontier freezes.
 
 **Closed** — two sub-types:
 - *Completed* — you wrote a synthesis, declared sufficiency, closed deliberately. Library and synthesis preserved. Cards continue in general review pool.
-- *Abandoned* — closed without synthesis. Work preserved, topic archived.
+- *Abandoned* — closed without synthesis. Work preserved, Rabbithole archived.
 
-A topic is closeable when you can articulate what you now understand that you didn't before — when you can write a coherent synthesis. Completion is triggered by a felt sense of sufficiency, not by finishing a queue.
+A Rabbithole is closeable when you can articulate what you now understand that you didn't before — when you can write a coherent synthesis. Completion is triggered by a felt sense of sufficiency, not by finishing a queue.
 
-### Topic Sessions
+### Rabbithole Sessions
 
-Each engagement with an active topic has a loose shape:
+Each engagement with an active Rabbithole has a loose shape:
 
 **Orient** — brief re-entry. Where did you leave off? What's due for review? What's next in the graph? A moment of reorientation, not a dashboard.
 
-**Process** — take an item from the frontier through the full Deep Read and retention loop. In topic context, the application conversation draws on your library and synthesis.
+**Process** — take an item from the frontier through the full Dive and retention loop. The application conversation draws on your library and synthesis.
 
-**Review** — spaced repetition cards due from this topic surface here. Topic-specific, not your full card pool.
+**Review** — spaced repetition cards due from this Rabbithole surface here.
 
 **Surface** — at the end, Marrow surfaces one synthesis prompt. An invitation, not a demand. You write into it or dismiss it.
 
@@ -278,19 +279,19 @@ Each engagement with an active topic has a loose shape:
 
 The synthesis is not a summary. A summary is what the content said. A synthesis is what you now think — shaped by the content, but yours.
 
-It grows incrementally throughout the topic's life. Each session's synthesis prompt is an invitation to add a thread, challenge a claim you wrote earlier, or connect two things that didn't connect before.
+It grows incrementally throughout the Rabbithole's life. Each session's synthesis prompt is an invitation to add a thread, challenge a claim you wrote earlier, or connect two things that didn't connect before.
 
 The AI's role is as a thinking partner. It asks questions, surfaces contradictions in what you've written, points to things in your library your synthesis hasn't accounted for. It does not write the synthesis for you.
 
 ### System-Sourced Content
 
-In topic rabbithole mode only, Marrow can surface content on your behalf beyond what's in your garden — wikis, research papers, books, long-form reference material. Deeper, slower, more authoritative content than your curated feed of favourite creators typically produces.
+In Rabbithole mode only, Marrow can surface content on your behalf beyond what's in your garden — wikis, research papers, books, long-form reference material. Deeper, slower, more authoritative content than your curated feed of favourite creators typically produces.
 
-The garden has a natural ceiling — it's bounded by who you follow. A topic rabbithole by definition wants to go deeper than that ceiling. System-sourced content removes it.
+The garden has a natural ceiling — it's bounded by who you follow. A Rabbithole by definition wants to go deeper than that ceiling. System-sourced content removes it.
 
 System-sourced content is clearly distinguished from user-sourced content. The user always knows which lane an item came from — the epistemic situation is different and that matters.
 
-System-sourced content does not appear in the garden. It exists exclusively in the topic frontier.
+System-sourced content does not appear in the garden. It exists exclusively in the Rabbithole frontier.
 
 ---
 
@@ -308,7 +309,7 @@ The graph is lazy. Connections are not pre-built or inferred in advance. When yo
 
 **Traversal** — you click a connection, it becomes the new focus node, its connections are fetched, the previous node becomes one of its visible connections. You can always navigate back.
 
-**Content** — each node has associated content items sourced from your garden feeds and system sources. Processing a content item belonging to a node adds it to your topic library.
+**Content** — each node has associated content items sourced from your garden feeds and system sources. Processing a content item belonging to a node adds it to your Rabbithole library.
 
 ### The Local Window
 
@@ -349,7 +350,7 @@ In v1 the graph is built correctly as an underlying structure. Topic frontier na
 
 **Engagement cluster heuristics** — the specific weights and thresholds for detecting a cluster are directionally locked but need refinement at build time.
 
-**Cross-topic connections** — concepts will inevitably overlap across topics. Currently cross-topic connections only surface in the Socratic synthesis mode. Whether a lighter ambient signal is warranted is unresolved.
+**Cross-Rabbithole connections** — concepts will inevitably overlap across Rabbitholes. Currently cross-Rabbithole connections only surface in the Socratic synthesis mode. Whether a lighter ambient signal is warranted is unresolved.
 
 **The unified library interface** — mid-consumption artifacts and loop-completion artifacts are all first-class and accumulate together. The interface that presents this unified library is directionally clear but not yet designed in detail.
 

@@ -82,11 +82,11 @@ Create `configs/dev.yaml` or `configs/prod.yaml` to override per environment. Va
 
 ## Core concepts
 
-**Deep Read** — the bridge between casual browsing and a full rabbithole. Activates the retention loop: highlights, flags, spot comprehension checks, and Socratic nudges become available. Everything captured mid-consumption is a first-class artifact.
+**Dive** — the bridge between casual browsing and a full Rabbithole. Activates the retention loop: highlights, flags, spot comprehension checks, and Socratic nudges become available. Everything captured mid-consumption is a first-class artifact.
 
-**Retention loop** — runs at the end of every Deep Read. Five phases: gaps analysis, comprehension check, application prompt, card generation, Socratic exit nudge.
+**Retention loop** — runs at the end of every Dive. Five phases: gaps analysis, comprehension check, application prompt, card generation, Socratic exit nudge.
 
-**Topic** — an ongoing area of inquiry built across multiple Deep Reads. Has a library (what you've processed), a frontier/graph (what to explore next), and a synthesis (what you're building — yours, not AI-generated).
+**Rabbithole** — an ongoing area of inquiry built across multiple Dives. Has a library (what you've processed), a frontier/graph (what to explore next), and a synthesis (what you're building — yours, not AI-generated).
 
 **Spaced repetition** — cards are generated automatically from highlights and comprehension gaps. Scheduling is algorithm-driven from first review onward.
 
