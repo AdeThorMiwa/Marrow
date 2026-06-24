@@ -1,0 +1,39 @@
+# Go (api/)
+api/tmp/
+api/*.exe
+api/*.exe~
+api/*.dll
+api/*.so
+api/*.dylib
+api/marrow
+
+api/configs/stage.yaml
+api/configs/prod.yaml
+
+# Flutter (app/)
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.pub-cache/
+app/.pub/
+app/build/
+app/**/doc/api/
+
+# Generated — Android
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+
+# Obfuscation / symbolication output
+app/app.*.symbols
+app/app.*.map.json
+
+# Editor & OS
+.DS_Store
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.log
