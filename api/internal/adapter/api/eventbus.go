@@ -25,8 +25,3 @@ type Bus interface {
 	Shutdown()
 }
 
-type Job struct {
-	Ctx     context.Context
-	Event   Event
-	Handler HandlerWrapper
-}
