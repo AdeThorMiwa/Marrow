@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"marrow/internal/adapter/api"
+	"marrow/internal/app"
 	"sync"
 )
 
@@ -72,7 +73,7 @@ func (b *LocalEventBus) Subscribe(eventName string, handler api.HandlerWrapper) 
 	}
 }
 
-func (b *LocalEventBus) Publish(event api.Event) error {
+func (b *LocalEventBus) Publish(app *app.Context, event api.Event) error {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
@@ -89,7 +90,7 @@ func (b *LocalEventBus) Publish(event api.Event) error {
 	for _, handler := range handlers {
 		h := handler
 		b.wg.Go(func() {
-			_ = h(ctx, event)
+			_ = h(ctx, app, event)
 		})
 	}
 

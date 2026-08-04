@@ -8,12 +8,43 @@ import (
 )
 
 type Config struct {
-	Env    Environment  `json:"env"`
-	Server ServerConfig `mapstructure:"server"`
+	Env        Environment      `json:"env"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Ingest     IngestConfig     `mapstructure:"ingest"`
+	Enrichment EnrichmentConfig `mapstructure:"enrichment"`
 }
 
 type ServerConfig struct {
 	Port string `mapstructure:"port"`
+}
+
+type DatabaseConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	Name     string `mapstructure:"name"`
+	SSLMode  string `mapstructure:"ssl_mode"`
+}
+
+type IngestConfig struct {
+	SchedulerCron     string `mapstructure:"scheduler_cron"`
+	RetryInterval     string `mapstructure:"retry_interval"`
+	DefaultBatchLimit int    `mapstructure:"default_batch_limit"`
+	BrokenThreshold   int    `mapstructure:"broken_threshold"`
+	QueueBufferSize   int    `mapstructure:"queue_buffer_size"`
+	QueueWorkers      int    `mapstructure:"queue_workers"`
+}
+
+type EnrichmentConfig struct {
+	OllamaBaseURL    string `mapstructure:"ollama_base_url"`
+	EmbeddingModel   string `mapstructure:"embedding_model"`
+	WhisperBaseURL   string `mapstructure:"whisper_base_url"`
+	QueueBufferSize  int    `mapstructure:"queue_buffer_size"`
+	QueueWorkers     int    `mapstructure:"queue_workers"`
+	RetryMaxAttempts int    `mapstructure:"retry_max_attempts"`
+	RetryBackoffBase string `mapstructure:"retry_backoff_base"`
 }
 
 func Load() (*Config, error) {

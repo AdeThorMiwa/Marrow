@@ -54,12 +54,16 @@ func TestFetchContents(t *testing.T) {
 			t.Fatalf("expected no error, got: %v", err)
 		}
 
-		if result == nil {
+		if !result.Reachable {
+			t.Fatal("expected source to be reachable")
+		}
+
+		if result.Items == nil {
 			t.Fatal("expected a slice of content, got nil")
 		}
 
-		if len(result) != FetchLimit {
-			t.Errorf("TestFetchContents() failed\nexpected_len:  %+v\ngot: %+v", FetchLimit, len(result))
+		if len(result.Items) != FetchLimit {
+			t.Errorf("TestFetchContents() failed\nexpected_len:  %+v\ngot: %+v", FetchLimit, len(result.Items))
 		}
 	})
 

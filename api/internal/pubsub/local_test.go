@@ -7,6 +7,7 @@ import (
 	"time"
 
 	api "marrow/internal/adapter/api"
+	"marrow/internal/app"
 	"marrow/internal/pubsub"
 )
 
@@ -23,9 +24,13 @@ type ctxKey string
 
 const traceKey ctxKey = "trace_id"
 
+func newTestApp(middlewares ...api.Middleware) *app.Context {
+	return &app.Context{Bus: pubsub.New(middlewares...)}
+}
+
 func TestLocalEventBus_SuccessAndTypeSafety(t *testing.T) {
-	bus := pubsub.New()
-	defer bus.Shutdown()
+	a := newTestApp()
+	defer a.Bus.Shutdown()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -33,7 +38,7 @@ func TestLocalEventBus_SuccessAndTypeSafety(t *testing.T) {
 	var receivedID string
 	var receivedSize int
 
-	pubsub.Subscribe(bus, func(ctx context.Context, ev MockEvent) error {
+	pubsub.Subscribe(a, func(ctx context.Context, app *app.Context, ev MockEvent) error {
 		receivedID = ev.ID
 		receivedSize = ev.Size
 		wg.Done()
@@ -41,7 +46,7 @@ func TestLocalEventBus_SuccessAndTypeSafety(t *testing.T) {
 	})
 
 	event := MockEvent{ID: "marrow-123", Size: 2048}
-	err := bus.Publish(event)
+	err := pubsub.Publish(a, event)
 	if err != nil {
 		t.Fatalf("failed to publish event: %v", err)
 	}
@@ -54,25 +59,25 @@ func TestLocalEventBus_SuccessAndTypeSafety(t *testing.T) {
 }
 
 func TestLocalEventBus_Unsubscribe(t *testing.T) {
-	bus := pubsub.New()
-	defer bus.Shutdown()
+	a := newTestApp()
+	defer a.Bus.Shutdown()
 
 	var mu sync.Mutex
 	executionCount := 0
 
-	sub := pubsub.Subscribe(bus, func(ctx context.Context, ev MockEvent) error {
+	sub := pubsub.Subscribe(a, func(ctx context.Context, app *app.Context, ev MockEvent) error {
 		mu.Lock()
 		executionCount++
 		mu.Unlock()
 		return nil
 	})
 
-	_ = bus.Publish(MockEvent{ID: "first"})
+	_ = pubsub.Publish(a, MockEvent{ID: "first"})
 	time.Sleep(10 * time.Millisecond)
 
 	sub.Unsubscribe()
 
-	_ = bus.Publish(MockEvent{ID: "second"})
+	_ = pubsub.Publish(a, MockEvent{ID: "second"})
 	time.Sleep(10 * time.Millisecond)
 
 	mu.Lock()
@@ -83,10 +88,10 @@ func TestLocalEventBus_Unsubscribe(t *testing.T) {
 }
 
 func TestLocalEventBus_NoHandler(t *testing.T) {
-	bus := pubsub.New()
-	defer bus.Shutdown()
+	a := newTestApp()
+	defer a.Bus.Shutdown()
 
-	err := bus.Publish(MockEvent{ID: "1"})
+	err := pubsub.Publish(a, MockEvent{ID: "1"})
 
 	if err != pubsub.ErrNoHandler {
 		t.Errorf("expected ErrNoHandler, got: %v", err)
@@ -94,10 +99,10 @@ func TestLocalEventBus_NoHandler(t *testing.T) {
 }
 
 func TestLocalEventBus_Closed(t *testing.T) {
-	bus := pubsub.New()
-	bus.Shutdown()
+	a := newTestApp()
+	a.Bus.Shutdown()
 
-	err := bus.Publish(MockEvent{ID: "late"})
+	err := pubsub.Publish(a, MockEvent{ID: "late"})
 	if err != pubsub.ErrBusClosed {
 		t.Errorf("expected ErrBusClosed, got: %v", err)
 	}
@@ -109,13 +114,13 @@ func TestBusMiddlewares_ExecutionOrderAndContext(t *testing.T) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	mw1 := func(ctx context.Context, event api.Event, next api.HandlerWrapper) error {
+	mw1 := func(ctx context.Context, app *api.AppContext, event api.Event, next api.HandlerWrapper) error {
 		mu.Lock()
 		executionOrder = append(executionOrder, "mw1_start")
 		mu.Unlock()
 
 		enrichedCtx := context.WithValue(ctx, traceKey, "marrow-trace-123")
-		err := next(enrichedCtx, event)
+		err := next(enrichedCtx, app, event)
 
 		mu.Lock()
 		executionOrder = append(executionOrder, "mw1_end")
@@ -123,7 +128,7 @@ func TestBusMiddlewares_ExecutionOrderAndContext(t *testing.T) {
 		return err
 	}
 
-	mw2 := func(ctx context.Context, event api.Event, next api.HandlerWrapper) error {
+	mw2 := func(ctx context.Context, app *api.AppContext, event api.Event, next api.HandlerWrapper) error {
 		mu.Lock()
 		executionOrder = append(executionOrder, "mw2_start")
 		mu.Unlock()
@@ -132,7 +137,7 @@ func TestBusMiddlewares_ExecutionOrderAndContext(t *testing.T) {
 			t.Errorf("mw2: trace_id missing or corrupted")
 		}
 
-		err := next(ctx, event)
+		err := next(ctx, app, event)
 
 		mu.Lock()
 		executionOrder = append(executionOrder, "mw2_end")
@@ -140,12 +145,12 @@ func TestBusMiddlewares_ExecutionOrderAndContext(t *testing.T) {
 		return err
 	}
 
-	bus := pubsub.New(mw1, mw2)
-	defer bus.Shutdown()
+	a := newTestApp(mw1, mw2)
+	defer a.Bus.Shutdown()
 
 	wg.Add(1)
 
-	pubsub.Subscribe(bus, func(ctx context.Context, ev MockEvent) error {
+	pubsub.Subscribe(a, func(ctx context.Context, app *app.Context, ev MockEvent) error {
 		mu.Lock()
 		executionOrder = append(executionOrder, "core_handler")
 		finalCtx = ctx
@@ -154,7 +159,7 @@ func TestBusMiddlewares_ExecutionOrderAndContext(t *testing.T) {
 		return nil
 	})
 
-	_ = bus.Publish(MockEvent{ID: "abc"})
+	_ = pubsub.Publish(a, MockEvent{ID: "abc"})
 	wg.Wait()
 
 	expectedOrder := []string{
@@ -186,23 +191,23 @@ func TestBusMiddlewares_InterceptionAndDrop(t *testing.T) {
 
 	wg.Add(1)
 
-	dropperMw := func(ctx context.Context, event api.Event, next api.HandlerWrapper) error {
+	dropperMw := func(ctx context.Context, app *api.AppContext, event api.Event, next api.HandlerWrapper) error {
 		defer wg.Done()
 		if event.Name() == "test.mock.event" {
 			return nil
 		}
-		return next(ctx, event)
+		return next(ctx, app, event)
 	}
 
-	bus := pubsub.New(dropperMw)
-	defer bus.Shutdown()
+	a := newTestApp(dropperMw)
+	defer a.Bus.Shutdown()
 
-	pubsub.Subscribe(bus, func(ctx context.Context, ev MockEvent) error {
+	pubsub.Subscribe(a, func(ctx context.Context, app *app.Context, ev MockEvent) error {
 		handlerCalled = true
 		return nil
 	})
 
-	_ = bus.Publish(MockEvent{ID: "drop-me"})
+	_ = pubsub.Publish(a, MockEvent{ID: "drop-me"})
 
 	wg.Wait()
 

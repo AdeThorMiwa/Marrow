@@ -1,2 +1,27 @@
 server:
   port: 8081
+
+database:
+  host: localhost
+  port: "5432"
+  user: postgres
+  password: postgres
+  name: marrow
+  ssl_mode: disable
+
+ingest:
+  scheduler_cron: "@every 1m"
+  retry_interval: 1m
+  default_batch_limit: 20
+  broken_threshold: 5
+  queue_buffer_size: 256
+  queue_workers: 4
+
+enrichment:
+  ollama_base_url: http://localhost:11434
+  embedding_model: nomic-embed-text
+  whisper_base_url: http://localhost:8081
+  queue_buffer_size: 256
+  queue_workers: 2
+  retry_max_attempts: 3
+  retry_backoff_base: 30s

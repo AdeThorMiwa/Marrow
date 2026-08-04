@@ -3,12 +3,15 @@ package adapter
 import (
 	"context"
 	"fmt"
+	api "marrow/internal/adapter/api"
 	model "marrow/internal/model"
 	"strings"
 	"time"
 
 	"github.com/mmcdole/gofeed"
 )
+
+const pollInterval = 15 * time.Minute
 
 type SubstackSourceAdapter struct {
 	id     string
@@ -60,15 +63,21 @@ func (a *SubstackSourceAdapter) Resolve(identifier string) (model.SourceConfig, 
 	return config, nil
 }
 
-func (a *SubstackSourceAdapter) FetchContents(source model.SourceConfig, size int) ([]model.RawContent, error) {
+func (a *SubstackSourceAdapter) Discover(source model.SourceConfig, size int) (api.DiscoverResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	rssURL := a.toRssURL(source.Identifier)
+	nextPollAt := time.Now().Add(pollInterval)
 
 	feed, err := a.parser.ParseURLWithContext(rssURL, ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch Substack content: %w", err)
+		// gofeed does not distinguish a network/fetch failure from a
+		// malformed-feed parse failure. Treat any failure here as the
+		// source being unreachable rather than an adapter error, so it
+		// drives Source health (design.md §8) instead of aborting the
+		// scheduler tick.
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
 	}
 
 	var contents []model.RawContent
@@ -91,18 +100,18 @@ func (a *SubstackSourceAdapter) FetchContents(source model.SourceConfig, size in
 		raw := model.RawContent{
 			ID:             item.GUID,
 			Title:          item.Title,
-			Kind:           model.Text,
-			Description:    item.Description,
-			Contents:       []string{item.Content},
 			URL:            item.Link,
 			PublishedAt:    publishedAt,
 			CoverImageUrls: []string{coverImage},
-			Authors:        []model.Author{{ID: source.Identifier, Name: source.Name}},
-			Metadata:       map[string]any{},
+			Blocks: []model.RawContentBlock{
+				{Kind: model.BlockText, Markdown: item.Content},
+			},
+			Authors:  []model.Author{{ID: source.Identifier, Name: source.Name}},
+			Metadata: map[string]any{},
 		}
 
 		contents = append(contents, raw)
 	}
 
-	return contents, nil
+	return api.DiscoverResult{Items: contents, NextPollAt: nextPollAt, Reachable: true}, nil
 }
