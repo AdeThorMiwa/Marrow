@@ -16,9 +16,9 @@ The two are not separate apps. You move between them fluidly.
 | Layer | Technology |
 |-------|-----------|
 | API | Go + Gin |
-| Database | MongoDB |
-| App | Flutter |
-| Platforms | macOS (desktop), Android |
+| Database | PostgreSQL + pgvector |
+| App | React Native (Expo) |
+| Platforms | iOS, Android, Web |
 
 ---
 
@@ -27,13 +27,14 @@ The two are not separate apps. You move between them fluidly.
 ```
 marrow/
 ├── api/          # Go backend
-│   ├── configs/  # YAML config files (base.yaml, dev.yaml, etc.)
-│   ├── lib/      # Config loading, env detection
-│   │   └── server/  # Gin server setup and routing
-│   └── main.go
-├── app/          # Flutter application
+│   ├── cmd/marrow/     # CLI entrypoint (serve, migrate up/down)
+│   ├── configs/        # YAML config files (base.yaml, dev.yaml, etc.)
+│   └── internal/       # Config, database, adapters, queue, scheduler, services, handlers
+├── app/          # Expo (React Native) application
 └── docs/
-    └── PRD.md    # Full product requirements
+    ├── PRD.md          # Full product requirements
+    ├── DESIGN.md       # System design
+    └── ingest/         # Ingest context spec (requirements, design, tasks)
 ```
 
 ---
@@ -42,15 +43,16 @@ marrow/
 
 ### Prerequisites
 
-- Go 1.24+
-- Flutter 3+
-- MongoDB instance
+- Go 1.26+
+- Node.js + npm
+- PostgreSQL with the pgvector extension
 
 ### API
 
 ```bash
 cd api
-air
+marrow migrate up   # apply database migrations (once, or after schema changes)
+air                 # run the dev server with live reload
 ```
 
 Config is loaded from `configs/base.yaml` and merged with an environment-specific file (e.g. `configs/dev.yaml`). The environment is read from the `APP_ENV` environment variable and defaults to `dev`.
@@ -58,15 +60,17 @@ Config is loaded from `configs/base.yaml` and merged with an environment-specifi
 To override config values via environment variables, prefix with `APP_` and use underscores for nesting:
 
 ```bash
-APP_SERVER_PORT=9000 go run main.go
+APP_SERVER_PORT=9000 go run ./cmd/marrow serve
 ```
 
 ### App
 
 ```bash
 cd app
-flutter run -d macos   # macOS desktop
-flutter run -d android # Android
+npm start        # Expo dev server — choose a platform from the menu
+npm run ios
+npm run android
+npm run web
 ```
 
 ---
