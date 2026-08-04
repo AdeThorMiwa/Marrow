@@ -13,6 +13,7 @@ type Config struct {
 	Database   DatabaseConfig   `mapstructure:"database"`
 	Ingest     IngestConfig     `mapstructure:"ingest"`
 	Enrichment EnrichmentConfig `mapstructure:"enrichment"`
+	Feed       FeedConfig       `mapstructure:"feed"`
 }
 
 type ServerConfig struct {
@@ -45,6 +46,12 @@ type EnrichmentConfig struct {
 	QueueWorkers     int    `mapstructure:"queue_workers"`
 	RetryMaxAttempts int    `mapstructure:"retry_max_attempts"`
 	RetryBackoffBase string `mapstructure:"retry_backoff_base"`
+}
+
+type FeedConfig struct {
+	DefaultPageSize int     `mapstructure:"default_page_size"`
+	OverfetchFactor int     `mapstructure:"overfetch_factor"`
+	ChronologyDecay float64 `mapstructure:"chronology_decay"`
 }
 
 func Load() (*Config, error) {

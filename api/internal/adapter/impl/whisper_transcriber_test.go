@@ -11,7 +11,7 @@ import (
 // TestWhisperCppTranscriber_RealServer_EndToEnd hits a real local
 // whisper.cpp server (per this repo's convention of testing against real
 // infra rather than mocking) — requires `whisper-server` running on
-// localhost:8081 with the `medium` model and --convert enabled. testdata/speech.wav
+// localhost:8090 with the `medium` model and --convert enabled. testdata/speech.wav
 // says "Marrow is a personal content retention app that helps you remember
 // what you read and watch."
 func TestWhisperCppTranscriber_RealServer_EndToEnd(t *testing.T) {
@@ -20,10 +20,10 @@ func TestWhisperCppTranscriber_RealServer_EndToEnd(t *testing.T) {
 		t.Fatalf("failed to read test fixture: %v", err)
 	}
 
-	tr := NewWhisperCppTranscriber("http://localhost:8081")
+	tr := NewWhisperCppTranscriber("http://localhost:8090")
 	resp, err := tr.Transcribe(context.Background(), model.Media{Buffer: buf, Kind: model.MediaAudio})
 	if err != nil {
-		t.Fatalf("transcribe failed (is whisper-server running on :8081?): %v", err)
+		t.Fatalf("transcribe failed (is whisper-server running on :8090?): %v", err)
 	}
 
 	if resp.Text == "" {

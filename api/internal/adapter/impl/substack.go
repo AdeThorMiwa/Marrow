@@ -104,7 +104,7 @@ func (a *SubstackSourceAdapter) Discover(source model.SourceConfig, size int) (a
 			PublishedAt:    publishedAt,
 			CoverImageUrls: []string{coverImage},
 			Blocks: []model.RawContentBlock{
-				{Kind: model.BlockText, Markdown: item.Content},
+				{Kind: model.BlockText, Markdown: htmlToMarkdown(item.Content)},
 			},
 			Authors:  []model.Author{{ID: source.Identifier, Name: source.Name}},
 			Metadata: map[string]any{},

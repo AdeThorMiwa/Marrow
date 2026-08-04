@@ -3,8 +3,11 @@ package dbo
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	model "marrow/internal/model"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func ExistsContentByURL(ctx context.Context, db DataSource, url string) (bool, error) {
@@ -39,6 +42,53 @@ func GetContentByID(ctx context.Context, db DataSource, id string) (model.Conten
 	content.Blocks = blocks
 
 	return content, nil
+}
+
+// ListFeedVisibleContents returns Content that has a matching
+// EnrichedContent row (Feed's readiness criterion), strictly older than
+// the cursor, newest first. cursorPublishedAt == nil means "first page" —
+// no cursor filter. Blocks are NOT populated here; feed.ContentFeedSource
+// batches those separately across the whole candidate set (avoids N+1).
+func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorPublishedAt *time.Time, cursorContentID string, limit int) ([]model.Content, error) {
+	var rows pgx.Rows
+	var err error
+
+	if cursorPublishedAt == nil {
+		rows, err = db.Query(ctx, `
+			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
+			FROM contents c
+			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
+			ORDER BY c.published_at DESC, c.id DESC
+			LIMIT $1
+		`, limit)
+	} else {
+		rows, err = db.Query(ctx, `
+			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
+			FROM contents c
+			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
+			  AND (c.published_at, c.id) < ($2, $3)
+			ORDER BY c.published_at DESC, c.id DESC
+			LIMIT $1
+		`, limit, *cursorPublishedAt, cursorContentID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []model.Content
+	for rows.Next() {
+		var c model.Content
+		var metadata []byte
+		if err := rows.Scan(&c.ID, &c.SourceID, &c.URL, &c.Title, &c.Description, &c.PublishedAt, &metadata, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(metadata, &c.Metadata); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 // InsertContent persists a new Content. If another worker won the race and

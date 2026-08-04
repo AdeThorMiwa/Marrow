@@ -20,7 +20,7 @@ import (
 )
 
 // runFullPipeline drives one RawContent through IngestWorker then
-// EnrichmentWorker against real local infra (whisper-server on :8081,
+// EnrichmentWorker against real local infra (whisper-server on :8090,
 // Ollama on :11434) and returns the persisted EnrichedContent's text and
 // embedding dimension for the caller to assert on.
 func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model.Source, raw model.RawContent, jobIDPrefix string) (text string, dim int, transcriptModel *string) {
@@ -54,7 +54,7 @@ func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model
 	enrichmentQueue := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
 	enrichmentWorker := workers.NewEnrichmentWorker(
 		enrichmentQueue,
-		adapter.NewWhisperCppTranscriber("http://localhost:8081"),
+		adapter.NewWhisperCppTranscriber("http://localhost:8090"),
 		adapter.NewOllamaEmbedder("http://localhost:11434"),
 		api.EmbeddingModel("nomic-embed-text"),
 	)

@@ -40,6 +40,24 @@ func ListDueSources(ctx context.Context, db DataSource, now time.Time) ([]model.
 	return scanSources(rows)
 }
 
+func GetSourcesByIDs(ctx context.Context, db DataSource, ids []string) ([]model.Source, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	rows, err := db.Query(ctx, `
+		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, created_at
+		FROM sources
+		WHERE id = ANY($1)
+	`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanSources(rows)
+}
+
 func ListAllSources(ctx context.Context, db DataSource) ([]model.Source, error) {
 	rows, err := db.Query(ctx, `
 		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, created_at

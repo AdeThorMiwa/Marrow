@@ -41,3 +41,34 @@ func ListContentBlocks(ctx context.Context, db DataSource, contentID string) ([]
 	}
 	return blocks, rows.Err()
 }
+
+// ListContentBlocksByContentIDs batches block-loading across many Contents
+// in one query — used by feed.ContentFeedSource to avoid N+1 queries per
+// page. Result is grouped by content_id, each group already ordered by
+// Position.
+func ListContentBlocksByContentIDs(ctx context.Context, db DataSource, contentIDs []string) (map[string][]model.ContentBlock, error) {
+	if len(contentIDs) == 0 {
+		return map[string][]model.ContentBlock{}, nil
+	}
+
+	rows, err := db.Query(ctx, `
+		SELECT id, content_id, position, kind, markdown, media_ref, caption, thumbnail_url
+		FROM content_blocks WHERE content_id = ANY($1) ORDER BY content_id, position
+	`, contentIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := map[string][]model.ContentBlock{}
+	for rows.Next() {
+		var b model.ContentBlock
+		var kind string
+		if err := rows.Scan(&b.ID, &b.ContentID, &b.Position, &kind, &b.Markdown, &b.MediaRef, &b.Caption, &b.ThumbnailURL); err != nil {
+			return nil, err
+		}
+		b.Kind = model.ContentBlockKind(kind)
+		out[b.ContentID] = append(out[b.ContentID], b)
+	}
+	return out, rows.Err()
+}

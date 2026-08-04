@@ -108,9 +108,15 @@ func (a *RSSMediaSourceAdapter) Discover(source model.SourceConfig, limit int) (
         // item.Description is a Content-level field, not adapter-opaque
         // Metadata — Enrichment reads Content.Description directly
         // (docs/enrichment §8). Distinct from the block's Caption.
+        //
+        // htmlToMarkdown (resolved, not in the original draft): RSS
+        // <description> fields are raw HTML, not plain text — confirmed on
+        // NPR's real feed (<br/>/<em>/<a> tags throughout). Same fix as
+        // Substack's item.Content (docs/ingest/design.md §4), same shared
+        // helper (adapter/impl/html.go).
         contents = append(contents, model.RawContent{
             ID: item.GUID, Title: item.Title, URL: item.Link, PublishedAt: publishedAt,
-            Description: item.Description,
+            Description: htmlToMarkdown(item.Description),
             Blocks:      []model.RawContentBlock{block},
             Authors:     []model.Author{{ID: source.Identifier, Name: source.Name}},
             Metadata:    map[string]any{},

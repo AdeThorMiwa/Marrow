@@ -205,12 +205,15 @@ raw := model.RawContent{
     ID: item.GUID, Title: item.Title, URL: item.Link, PublishedAt: publishedAt,
     CoverImageUrls: []string{coverImage},
     Blocks: []model.RawContentBlock{
-        {Kind: model.BlockText, Markdown: item.Content},
+        {Kind: model.BlockText, Markdown: htmlToMarkdown(item.Content)},
     },
     Authors:  []model.Author{{ID: source.Identifier, Name: source.Name}},
     Metadata: map[string]any{},
 }
 ```
+
+**`htmlToMarkdown` (resolved, not in the original draft):** `item.Content` is raw HTML from the RSS `content:encoded` field, not plain Markdown — storing it as-is is wrong, not just risky. Confirmed against a real failure: a Substack article's HTML export leaked `<img>` tag `data-attrs` JSON (HTML-entity-escaped, embedding full S3 URLs) directly into what was stored as `ContentBlock.Markdown` — a single unbroken token 500+ characters long, enough to blow Ollama's embedding context limit by itself (`docs/enrichment/design.md` §4). Fixed at the source with `github.com/JohannesKaufmann/html-to-markdown` (`adapter/impl/html.go`) — converts to real Markdown (headings, bold/italic, links, images), discarding presentational/tracking attributes entirely rather than leaking them as text. Falls back to the original string on a conversion error, never blocks ingestion. Same fix applies to the RSS media adapter's `item.Description` (`docs/rss-media-adapter/design.md` §3) — same root cause, RSS `<description>` fields are raw HTML too.
+
 Everything else about the Substack adapter (reachability handling, `NextPollAt`) is unchanged.
 
 ---

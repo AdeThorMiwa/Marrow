@@ -222,6 +222,15 @@ func (o *OllamaEmbedder) Embed(ctx context.Context, text string, model api.Embed
 
 `embedChunk` is the same single-request logic the original design had (build request, POST `/api/embed`, decode one embedding) — chunking wraps it, it isn't replaced by it.
 
+**Word-count chunking alone wasn't sufficient — a real failure exposed why.** A real Substack article's raw HTML export leaked `<img>` tag `data-attrs` JSON (HTML-entity-escaped, embedding full S3 URLs) directly into stored content — a single unbroken token 500+ characters long. A 1200-word chunk containing a handful of these still blew the ~2000-word context limit, because word *count* doesn't track token count when a "word" is actually a 500-character blob. Two fixes, at different layers:
+
+1. **Root cause, fixed at the source (`docs/ingest/design.md` §4):** adapters now convert HTML to real Markdown (`adapter/impl/html.go`, `htmlToMarkdown`) instead of storing raw HTML fragments — discards presentational/tracking attributes entirely rather than leaking them as text.
+2. **Defensive insurance, kept regardless:** `chunkByWords` also discards any whitespace-delimited token over `maxWordLength` (100 chars) before chunking — no legitimate natural-language word is ever that long, but a legitimate long URL inside clean Markdown link/image syntax still could be, and word-count chunking alone is blind to that either way.
+
+```go
+const maxWordLength = 100 // discard anomalously long tokens before chunking — see above
+```
+
 Ollama base URL and model name (`nomic-embed-text`) are config values (§10) — wired in `configs/base.yaml`'s `enrichment:` block.
 
 **Transcriber — resolved: `whisper.cpp` server mode, `medium` model, verified against real local infra.** `whisper.cpp`'s `whisper-server` (installed via Homebrew's `whisper-cpp` package, GGML `medium` model) runs its own local HTTP server. It does **not** expose an OpenAI-compatible `/v1/audio/transcriptions` path — confirmed against a real running instance, its native endpoint is `POST /inference` (configurable server-side via `--inference-path`), with the same `{"text": "..."}` response shape. The server must be started with `--convert` (requires `ffmpeg` on the server host) to accept arbitrary audio/video formats — without it, it only accepts pre-converted WAV, and real podcast/video files won't arrive pre-converted. `ffmpeg` also strips the audio track out of a video file transparently, so `WhisperCppTranscriber` needs no video-specific handling. It takes `model.Media` directly — no fetching, no knowledge of `media_ref` formats:
@@ -229,7 +238,7 @@ Ollama base URL and model name (`nomic-embed-text`) are config values (§10) —
 ```go
 // adapter/impl/whisper_transcriber.go
 type WhisperCppTranscriber struct {
-    BaseURL string // e.g. http://localhost:8081
+    BaseURL string // e.g. http://localhost:8090 — NOT 8081, that's the API server's own port (configs/base.yaml's server.port)
     Client  *http.Client
 }
 

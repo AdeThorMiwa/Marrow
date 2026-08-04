@@ -20,8 +20,13 @@ ingest:
 enrichment:
   ollama_base_url: http://localhost:11434
   embedding_model: nomic-embed-text
-  whisper_base_url: http://localhost:8081
+  whisper_base_url: http://localhost:8090
   queue_buffer_size: 256
   queue_workers: 2
   retry_max_attempts: 3
   retry_backoff_base: 30s
+
+feed:
+  default_page_size: 20
+  overfetch_factor: 5
+  chronology_decay: 0.05

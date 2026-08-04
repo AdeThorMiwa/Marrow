@@ -124,10 +124,27 @@ func (o *OllamaEmbedder) embedChunk(ctx context.Context, text string, model api.
 	return parsed.Embeddings[0], nil
 }
 
+// maxWordLength discards whitespace-delimited "words" longer than this
+// before chunking. Primary defense against this is now htmlToMarkdown
+// (adapter/impl/html.go) — the real bug was raw HTML/attribute soup
+// leaking into stored content, since fixed at the source for Substack and
+// RSS-media. This stays as cheap insurance: no legitimate natural-language
+// word is ever 100+ characters, but a legitimate long URL inside clean
+// Markdown link/image syntax still could be — word-count-based chunking
+// alone is blind to that either way.
+const maxWordLength = 100
+
 // chunkByWords splits text on whitespace into groups of at most limit
-// words, always returning at least one chunk (even for empty text).
+// words, discarding anomalously long tokens first (maxWordLength), always
+// returning at least one chunk (even for empty text).
 func chunkByWords(text string, limit int) []string {
-	words := strings.Fields(text)
+	fields := strings.Fields(text)
+	words := make([]string, 0, len(fields))
+	for _, w := range fields {
+		if len(w) <= maxWordLength {
+			words = append(words, w)
+		}
+	}
 	if len(words) == 0 {
 		return []string{text}
 	}

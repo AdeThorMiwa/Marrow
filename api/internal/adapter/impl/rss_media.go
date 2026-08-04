@@ -92,7 +92,7 @@ func (a *RSSMediaSourceAdapter) Discover(source model.SourceConfig, limit int) (
 
 		contents = append(contents, model.RawContent{
 			ID: item.GUID, Title: item.Title, URL: item.Link, PublishedAt: publishedAt,
-			Description: item.Description, // content-level synopsis — a first-class field, not Metadata
+			Description: htmlToMarkdown(item.Description), // content-level synopsis — a first-class field, not Metadata
 			Blocks:      []model.RawContentBlock{block},
 			Authors:     []model.Author{{ID: source.Identifier, Name: source.Name}},
 			Metadata:    map[string]any{},
