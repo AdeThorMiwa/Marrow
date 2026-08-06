@@ -39,3 +39,8 @@ feed:
 twitter:
   username: ""
   cookies: ""
+
+# Same rule as twitter above — APP_INSTAGRAM_USERNAME / APP_INSTAGRAM_COOKIES.
+instagram:
+  username: ""
+  cookies: ""

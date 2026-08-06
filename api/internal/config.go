@@ -16,6 +16,7 @@ type Config struct {
 	Enrichment EnrichmentConfig `mapstructure:"enrichment"`
 	Feed       FeedConfig       `mapstructure:"feed"`
 	Twitter    TwitterConfig    `mapstructure:"twitter"`
+	Instagram  InstagramConfig  `mapstructure:"instagram"`
 }
 
 type ServerConfig struct {
@@ -67,6 +68,15 @@ type FeedConfig struct {
 // Cookies is the raw `Cookie:` header string copied from a logged-in
 // browser session (needs at least auth_token and ct0).
 type TwitterConfig struct {
+	Username string `mapstructure:"username"`
+	Cookies  string `mapstructure:"cookies"`
+}
+
+// InstagramConfig is the Instagram counterpart to TwitterConfig — same
+// deliberately-empty-in-committed-config, env-var-only rule, same "raw
+// Cookie header string" shape for Cookies (see
+// adapter/impl/instagram.go).
+type InstagramConfig struct {
 	Username string `mapstructure:"username"`
 	Cookies  string `mapstructure:"cookies"`
 }

@@ -46,11 +46,15 @@ func serve(c *lib.Config) error {
 	appCtx := &app.Context{Pool: pool, Bus: pubsub.New(), Config: c}
 	defer appCtx.Bus.Shutdown()
 
-	// Twitter is opt-in (unlike Ollama/whisper.cpp, which this app always
-	// needs) — only registered, and only asserts twscrape is installed, once
-	// real credentials are actually configured. See lib.TwitterConfig.
+	// Twitter and Instagram are opt-in (unlike Ollama/whisper.cpp, which this
+	// app always needs) — only registered, and only asserted installed, once
+	// real credentials are actually configured. See lib.TwitterConfig /
+	// lib.InstagramConfig.
 	if c.Twitter.Username != "" && c.Twitter.Cookies != "" {
 		registry.Register(adapter.NewTwitterAdapter(c.Twitter))
+	}
+	if c.Instagram.Username != "" && c.Instagram.Cookies != "" {
+		registry.Register(adapter.NewInstagramAdapter(c.Instagram))
 	}
 
 	ingestQueue := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{
