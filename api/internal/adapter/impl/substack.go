@@ -94,20 +94,21 @@ func (a *SubstackSourceAdapter) Resolve(identifier string) ([]model.SourceConfig
 // Verify re-resolves config.Identifier and reports whether it still comes
 // back to exactly one candidate — a config produced from a Note/profile
 // resolve can be ambiguous or have drifted by the time it's actually added.
-func (a *SubstackSourceAdapter) Verify(config model.SourceConfig) error {
+func (a *SubstackSourceAdapter) Verify(config model.SourceConfig) (model.SourceConfig, error) {
 	configs, err := a.Resolve(config.Identifier)
 	if err != nil {
-		return err
+		return model.SourceConfig{}, err
 	}
 	if len(configs) != 1 {
-		return fmt.Errorf("identifier does not resolve to exactly one source: %s (%d candidates)", config.Identifier, len(configs))
+		return model.SourceConfig{}, fmt.Errorf("identifier does not resolve to exactly one source: %s (%d candidates)", config.Identifier, len(configs))
 	}
-	return nil
+	return configs[0], nil
 }
 
 // resolvePublication fetches a publication root's RSS feed to confirm it's
-// real and to get its display name — the same check the original v1
-// Resolve did, now returning a single-element candidate slice.
+// real, get its display name, and estimate its natural posting cadence
+// (StaleAfter) — the same check the original v1 Resolve did, now returning
+// a single-element candidate slice.
 func (a *SubstackSourceAdapter) resolvePublication(root string) ([]model.SourceConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -117,7 +118,12 @@ func (a *SubstackSourceAdapter) resolvePublication(root string) ([]model.SourceC
 		return nil, fmt.Errorf("failed to resolve Substack publication: %w", err)
 	}
 
-	return []model.SourceConfig{{Identifier: root, Name: feed.Title, AdapterID: a.id}}, nil
+	return []model.SourceConfig{{
+		Identifier: root,
+		Name:       feed.Title,
+		AdapterID:  a.id,
+		StaleAfter: estimateStaleAfter(feed.Items),
+	}}, nil
 }
 
 var pubDomainPattern = regexp.MustCompile(`https?://([a-z0-9-]+)\.substack\.com`)

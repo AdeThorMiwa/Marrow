@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	lib "marrow/internal"
 	"marrow/internal/app"
 	model "marrow/internal/model"
 	"marrow/internal/queue"
@@ -13,12 +14,27 @@ import (
 	"marrow/internal/workers"
 )
 
+func testIngestConfig() lib.IngestConfig {
+	return lib.IngestConfig{
+		SchedulerCron:     "@every 1h",
+		RetryInterval:     "1m",
+		DefaultBatchLimit: 5,
+		BrokenThreshold:   3,
+		StaleThreshold:    3,
+		RetryBackoffBase:  "1m",
+		BrokenBackoffMax:  "1h",
+	}
+}
+
 func TestIngestDiscoveryTask_Run_MarksHealthyOnSuccessAndEnqueuesItems(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	src := testutil.SeedSource(t, pool, "src-1") // real, reachable Substack feed
 
 	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 64})
-	task := tasks.NewIngestDiscoveryTask(&app.Context{Pool: pool}, q, "@every 1h", 5, 3, time.Minute)
+	task, err := tasks.NewIngestDiscoveryTask(&app.Context{Pool: pool}, q, testIngestConfig())
+	if err != nil {
+		t.Fatalf("NewIngestDiscoveryTask failed: %v", err)
+	}
 
 	if err := task.Run(context.Background()); err != nil {
 		t.Fatalf("Run failed: %v", err)
@@ -42,22 +58,31 @@ func TestIngestDiscoveryTask_Run_MarksHealthyOnSuccessAndEnqueuesItems(t *testin
 	}
 }
 
-func TestIngestDiscoveryTask_Run_MarksStaleThenBrokenOnFailure(t *testing.T) {
+func TestIngestDiscoveryTask_Run_StaysOKUntilBrokenThreshold(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	src := testutil.SeedSourceWith(t, pool, "src-unreachable", "substack", "https://this-domain-does-not-exist.marrow-test.invalid")
 
 	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 8})
-	task := tasks.NewIngestDiscoveryTask(&app.Context{Pool: pool}, q, "@every 1h", 5, 3, time.Minute)
+	task, err := tasks.NewIngestDiscoveryTask(&app.Context{Pool: pool}, q, testIngestConfig())
+	if err != nil {
+		t.Fatalf("NewIngestDiscoveryTask failed: %v", err)
+	}
 
 	if err := task.Run(context.Background()); err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 	updated := testutil.FetchSource(t, pool, src.ID)
-	if updated.Health != model.HealthStale {
-		t.Fatalf("expected health stale after 1 failure, got %s (failures=%d)", updated.Health, updated.ConsecutiveFailures)
+	// A single unreachable poll does NOT mark the source unhealthy — only
+	// hitting BrokenThreshold does. Below threshold it's still OK, just
+	// backing off.
+	if updated.Health != model.HealthOK {
+		t.Fatalf("expected health ok after 1 failure (below threshold), got %s (failures=%d)", updated.Health, updated.ConsecutiveFailures)
 	}
 	if updated.ConsecutiveFailures != 1 {
 		t.Fatalf("expected 1 consecutive failure, got %d", updated.ConsecutiveFailures)
+	}
+	if !updated.NextPollAt.After(time.Now().Add(30 * time.Second)) {
+		t.Errorf("expected next_poll_at to have backed off, got %s", updated.NextPollAt)
 	}
 
 	// Run twice more to reach the broken threshold (3). Reset next_poll_at

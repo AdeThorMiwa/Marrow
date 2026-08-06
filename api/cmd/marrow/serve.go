@@ -42,11 +42,6 @@ func serve(c *lib.Config) error {
 	}
 	defer pool.Close()
 
-	retryInterval, err := time.ParseDuration(c.Ingest.RetryInterval)
-	if err != nil {
-		return fmt.Errorf("invalid ingest.retry_interval: %w", err)
-	}
-
 	appCtx := &app.Context{Pool: pool, Bus: pubsub.New(), Config: c}
 	defer appCtx.Bus.Shutdown()
 
@@ -58,10 +53,10 @@ func serve(c *lib.Config) error {
 	ingestWorker := workers.NewIngestWorker(ingestQueue)
 	ingestWorker.Start(ctx, appCtx, c.Ingest.QueueWorkers)
 
-	discoveryTask := tasks.NewIngestDiscoveryTask(
-		appCtx, ingestQueue, c.Ingest.SchedulerCron,
-		c.Ingest.DefaultBatchLimit, c.Ingest.BrokenThreshold, retryInterval,
-	)
+	discoveryTask, err := tasks.NewIngestDiscoveryTask(appCtx, ingestQueue, c.Ingest)
+	if err != nil {
+		return fmt.Errorf("failed to construct ingest discovery task: %w", err)
+	}
 
 	sched := scheduler.New()
 	if err := sched.Schedule(discoveryTask); err != nil {

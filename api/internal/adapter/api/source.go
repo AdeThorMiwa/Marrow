@@ -32,12 +32,14 @@ type SourceAdapter interface {
 	// candidate publication was found.
 	Resolve(identifier string) ([]model.SourceConfig, error)
 
-	// Verify checks whether config.Identifier still resolves to exactly
-	// this one candidate — the gate AddSources calls right before
-	// persisting, since a config produced from a Note/profile resolve can
-	// be ambiguous or stale by the time the caller is ready to add it.
-	// Returns nil iff valid.
-	Verify(config model.SourceConfig) error
+	// Verify checks whether config.Identifier still resolves to exactly one
+	// candidate — the gate AddSources calls right before persisting, since
+	// a config produced from a Note/profile resolve can be ambiguous or
+	// stale by the time the caller is ready to add it. Returns the freshly
+	// re-resolved candidate (authoritative Name/StaleAfter/etc. — what
+	// actually gets persisted, not whatever the client echoed back) and a
+	// nil error iff valid.
+	Verify(config model.SourceConfig) (model.SourceConfig, error)
 
 	// Discover fetches up to limit published items from a known source.
 	// error is reserved for adapter/programming failures (bad config, etc.);

@@ -26,10 +26,16 @@ func TestResolveUrl(t *testing.T) {
 			t.Fatalf("expected no error, got: %v", err)
 		}
 
-		expected := []model.SourceConfig{source}
-
-		if !reflect.DeepEqual(result, expected) {
-			t.Errorf("ResolveURL() failed\ngot:  %+v\nwant: %+v", result, expected)
+		if len(result) != 1 {
+			t.Fatalf("expected exactly one candidate, got %d", len(result))
+		}
+		// StaleAfter is computed from the live feed's actual posting
+		// cadence (see estimateStaleAfter) — real data, not something to
+		// pin down with an exact expected value.
+		got := result[0]
+		got.StaleAfter = 0
+		if !reflect.DeepEqual(got, source) {
+			t.Errorf("ResolveURL() failed\ngot:  %+v\nwant: %+v", got, source)
 		}
 	})
 

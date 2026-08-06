@@ -11,24 +11,24 @@ import (
 
 func InsertSource(ctx context.Context, db DataSource, s model.Source) error {
 	_, err := db.Exec(ctx, `
-		INSERT INTO sources (id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`, s.ID, s.AdapterID, s.Identifier, s.Name, s.LastFetchedAt, s.NextPollAt, string(s.Health), s.ConsecutiveFailures, s.CreatedAt)
+		INSERT INTO sources (id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, s.ID, s.AdapterID, s.Identifier, s.Name, s.LastFetchedAt, s.NextPollAt, string(s.Health), s.ConsecutiveFailures, s.ConsecutiveEmptyPolls, int(s.StaleAfter.Seconds()), s.CreatedAt)
 	return err
 }
 
 func UpdateSource(ctx context.Context, db DataSource, s model.Source) error {
 	_, err := db.Exec(ctx, `
 		UPDATE sources
-		SET last_fetched_at = $2, next_poll_at = $3, health = $4, consecutive_failures = $5
+		SET last_fetched_at = $2, next_poll_at = $3, health = $4, consecutive_failures = $5, consecutive_empty_polls = $6, stale_after_seconds = $7
 		WHERE id = $1
-	`, s.ID, s.LastFetchedAt, s.NextPollAt, string(s.Health), s.ConsecutiveFailures)
+	`, s.ID, s.LastFetchedAt, s.NextPollAt, string(s.Health), s.ConsecutiveFailures, s.ConsecutiveEmptyPolls, int(s.StaleAfter.Seconds()))
 	return err
 }
 
 func ListDueSources(ctx context.Context, db DataSource, now time.Time) ([]model.Source, error) {
 	rows, err := db.Query(ctx, `
-		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, created_at
+		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, created_at
 		FROM sources
 		WHERE next_poll_at <= $1
 	`, now)
@@ -46,7 +46,7 @@ func GetSourcesByIDs(ctx context.Context, db DataSource, ids []string) ([]model.
 	}
 
 	rows, err := db.Query(ctx, `
-		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, created_at
+		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, created_at
 		FROM sources
 		WHERE id = ANY($1)
 	`, ids)
@@ -60,7 +60,7 @@ func GetSourcesByIDs(ctx context.Context, db DataSource, ids []string) ([]model.
 
 func ListAllSources(ctx context.Context, db DataSource) ([]model.Source, error) {
 	rows, err := db.Query(ctx, `
-		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, created_at
+		SELECT id, adapter_id, identifier, name, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, created_at
 		FROM sources
 		ORDER BY created_at DESC
 	`)
@@ -77,10 +77,12 @@ func scanSources(rows pgx.Rows) ([]model.Source, error) {
 	for rows.Next() {
 		var s model.Source
 		var health string
-		if err := rows.Scan(&s.ID, &s.AdapterID, &s.Identifier, &s.Name, &s.LastFetchedAt, &s.NextPollAt, &health, &s.ConsecutiveFailures, &s.CreatedAt); err != nil {
+		var staleAfterSeconds int
+		if err := rows.Scan(&s.ID, &s.AdapterID, &s.Identifier, &s.Name, &s.LastFetchedAt, &s.NextPollAt, &health, &s.ConsecutiveFailures, &s.ConsecutiveEmptyPolls, &staleAfterSeconds, &s.CreatedAt); err != nil {
 			return nil, err
 		}
 		s.Health = model.SourceHealth(health)
+		s.StaleAfter = time.Duration(staleAfterSeconds) * time.Second
 		out = append(out, s)
 	}
 	return out, rows.Err()

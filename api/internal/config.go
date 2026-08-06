@@ -33,7 +33,10 @@ type IngestConfig struct {
 	SchedulerCron     string `mapstructure:"scheduler_cron"`
 	RetryInterval     string `mapstructure:"retry_interval"`
 	DefaultBatchLimit int    `mapstructure:"default_batch_limit"`
-	BrokenThreshold   int    `mapstructure:"broken_threshold"`
+	BrokenThreshold   int    `mapstructure:"broken_threshold"`    // consecutive unreachable polls before Health = broken
+	StaleThreshold    int    `mapstructure:"stale_threshold"`     // consecutive empty (reachable, 0 items) polls before Health = stale
+	RetryBackoffBase  string `mapstructure:"retry_backoff_base"`  // exponential backoff base for both failure counters
+	BrokenBackoffMax  string `mapstructure:"broken_backoff_max"`  // cap for the unreachable path only — stale uses each Source's own StaleAfter instead
 	QueueBufferSize   int    `mapstructure:"queue_buffer_size"`
 	QueueWorkers      int    `mapstructure:"queue_workers"`
 }

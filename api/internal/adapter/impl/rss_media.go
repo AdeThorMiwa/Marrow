@@ -57,22 +57,27 @@ func (a *RSSMediaSourceAdapter) Resolve(identifier string) ([]model.SourceConfig
 		return nil, fmt.Errorf("failed to resolve RSS media feed: %w", err)
 	}
 
-	return []model.SourceConfig{{Identifier: identifier, Name: feed.Title, AdapterID: a.id}}, nil
+	return []model.SourceConfig{{
+		Identifier: identifier,
+		Name:       feed.Title,
+		AdapterID:  a.id,
+		StaleAfter: estimateStaleAfter(feed.Items),
+	}}, nil
 }
 
 // Verify re-resolves config.Identifier and reports whether it still comes
 // back to exactly one candidate. RSS feed URLs are already unambiguous, so
 // this mainly guards against the feed having gone away since it was
 // resolved.
-func (a *RSSMediaSourceAdapter) Verify(config model.SourceConfig) error {
+func (a *RSSMediaSourceAdapter) Verify(config model.SourceConfig) (model.SourceConfig, error) {
 	configs, err := a.Resolve(config.Identifier)
 	if err != nil {
-		return err
+		return model.SourceConfig{}, err
 	}
 	if len(configs) != 1 {
-		return fmt.Errorf("identifier does not resolve to exactly one source: %s (%d candidates)", config.Identifier, len(configs))
+		return model.SourceConfig{}, fmt.Errorf("identifier does not resolve to exactly one source: %s (%d candidates)", config.Identifier, len(configs))
 	}
-	return nil
+	return configs[0], nil
 }
 
 func (a *RSSMediaSourceAdapter) Discover(source model.SourceConfig, limit int) (api.DiscoverResult, error) {
