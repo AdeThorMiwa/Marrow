@@ -19,6 +19,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// testDBLockKey is an arbitrary, fixed Postgres advisory lock key — see
+// ConnectDB's doc comment for what it's for. Any value works as long as
+// every ConnectDB caller agrees on it; it doesn't need to mean anything.
+const testDBLockKey = 424242
+
 func ConnectDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
@@ -32,6 +37,34 @@ func ConnectDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("failed to connect to test database: %v", err)
 	}
 	t.Cleanup(pool.Close)
+
+	// `go test ./...` runs each package's test binary as its own process,
+	// and by default runs several of them concurrently (see `go help
+	// test`'s -p flag) — but every package's tests share this one
+	// marrow_test database. Without serializing, one package's TRUNCATE
+	// below can run while another package's still-in-flight test has
+	// already inserted a Content row but not yet its EnrichedContent,
+	// deleting that Content out from under it and turning a perfectly
+	// correct test into a spurious foreign-key-violation failure
+	// (confirmed: this exact race reproduced under plain `go test ./...`
+	// and vanished under `go test -p 1 ./...`). A session-level Postgres
+	// advisory lock, held for this test's entire lifetime, forces every
+	// ConnectDB-using test across every package onto one global queue —
+	// enforced by the database itself, so it holds regardless of how `go
+	// test` happens to be invoked, rather than relying on every caller to
+	// remember a flag.
+	conn, err := pool.Acquire(context.Background())
+	if err != nil {
+		t.Fatalf("failed to acquire a connection for the test database lock: %v", err)
+	}
+	if _, err := conn.Exec(context.Background(), `SELECT pg_advisory_lock($1)`, testDBLockKey); err != nil {
+		conn.Release()
+		t.Fatalf("failed to acquire test database lock: %v", err)
+	}
+	t.Cleanup(func() {
+		conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, testDBLockKey)
+		conn.Release()
+	})
 
 	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, sources`); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
