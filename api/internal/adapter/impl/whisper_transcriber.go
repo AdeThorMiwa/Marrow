@@ -20,7 +20,12 @@ type WhisperCppTranscriber struct {
 	Client  *http.Client
 }
 
+// NewWhisperCppTranscriber asserts a live whisper.cpp server is actually
+// reachable at baseURL before returning — same rationale as
+// NewOllamaEmbedder: fail loudly at startup, not on the first real
+// transcription job.
 func NewWhisperCppTranscriber(baseURL string) *WhisperCppTranscriber {
+	assertServiceUp("whisper.cpp", baseURL)
 	return &WhisperCppTranscriber{
 		BaseURL: baseURL,
 		Client:  &http.Client{Timeout: 5 * time.Minute}, // transcription can take a while for long-form audio/video

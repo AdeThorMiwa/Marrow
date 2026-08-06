@@ -15,9 +15,10 @@ import (
 
 var adapters = []any{
 	impl.NewSubstackAdapter(),
-	impl.NewRSSMediaAdapter(),  // SourceAdapter half
-	impl.NewRSSMediaResolver(), // MediaResolver half — same ID, separate Go value (see its doc comment)
-	// future: impl.NewYoutubeAdapter(), ...
+	impl.NewRSSMediaAdapter(),        // SourceAdapter half
+	impl.NewRSSMediaResolver(),       // MediaResolver half — same ID, separate Go value (see its doc comment)
+	impl.NewYoutubeAdapter(),         // SourceAdapter half
+	impl.NewYoutubeCaptionResolver(), // MediaResolver half — same ID, separate Go value (same split as RSS media)
 }
 
 // SourceAdapter resolves an adapter ID to its SourceAdapter capability.

@@ -42,7 +42,12 @@ type OllamaEmbedder struct {
 	Client  *http.Client
 }
 
+// NewOllamaEmbedder asserts a live Ollama instance is actually reachable at
+// baseURL before returning — Embed depends on it for every enrichment job,
+// so a misconfigured/down instance should fail loudly at startup, not as an
+// opaque connection-refused error the first time something gets enriched.
 func NewOllamaEmbedder(baseURL string) *OllamaEmbedder {
+	assertServiceUp("ollama", baseURL)
 	return &OllamaEmbedder{
 		BaseURL: baseURL,
 		Client:  &http.Client{Timeout: 60 * time.Second},

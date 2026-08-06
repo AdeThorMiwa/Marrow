@@ -7,3 +7,4 @@ export { Surface, type SurfaceProps } from './surface';
 export { Text, type TextProps } from './text';
 export { TextInput, type TextInputProps } from './text-input';
 export { VideoPlayer, type VideoPlayerProps } from './video-player';
+export { YouTubeEmbed, type YouTubeEmbedProps } from './youtube-embed';

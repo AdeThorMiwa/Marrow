@@ -6,8 +6,9 @@ package models
 type MediaKind string
 
 const (
-	MediaAudio MediaKind = "audio"
-	MediaVideo MediaKind = "video"
+	MediaAudio   MediaKind = "audio"
+	MediaVideo   MediaKind = "video"
+	MediaCaption MediaKind = "caption" // resolved plain-text captions, not raw audio/video bytes — see YouTubeCaptionResolver
 )
 
 // Media is raw resolved media bytes, ready for transcription. It carries no

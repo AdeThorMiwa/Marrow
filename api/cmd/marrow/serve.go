@@ -95,7 +95,7 @@ func startEnrichment(ctx context.Context, appCtx *app.Context, c *lib.Config) er
 
 	enrichmentWorker := workers.NewEnrichmentWorker(
 		enrichmentQueue,
-		adapter.NewWhisperCppTranscriber(c.Enrichment.WhisperBaseURL),
+		adapter.NewTranscriber(c.Enrichment.WhisperBaseURL),
 		adapter.NewOllamaEmbedder(c.Enrichment.OllamaBaseURL),
 		api.EmbeddingModel(c.Enrichment.EmbeddingModel),
 	)

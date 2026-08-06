@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AudioPlayer, Badge, Button, Markdown, Text, VideoPlayer } from '@/components/ui';
+import { AudioPlayer, Badge, Button, Markdown, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { getFeed } from '@/lib/feed';
-import { getPlayableUrl } from '@/lib/media';
+import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
 import type { ContentPayload, FeedItem, SourceHealthPayload } from '@/lib/types';
 import { useTheme } from '@/theme/theme-provider';
 
@@ -340,6 +340,9 @@ function ContentMedia({
 }) {
   if (type === 'video') {
     const block = blocks.find((b) => b.kind === 'video');
+    const youtubeVideoId = block ? getYoutubeVideoId(block) : undefined;
+    if (youtubeVideoId) return <YouTubeEmbed videoId={youtubeVideoId} isVisible={isVisible} />;
+
     const uri = block ? getPlayableUrl(block) : undefined;
     if (uri) return <VideoPlayer uri={uri} isVisible={isVisible} />;
   }
