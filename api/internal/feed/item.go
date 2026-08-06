@@ -19,11 +19,17 @@ type FeedItem struct {
 }
 
 type ContentPayload struct {
-	ContentID   string         `json:"content_id"`
-	SourceName  string         `json:"source_name"`
-	Title       *string        `json:"title,omitempty"`
-	PublishedAt time.Time      `json:"published_at"`
-	Blocks      []BlockSummary `json:"blocks"`
+	ContentID  string `json:"content_id"`
+	SourceName string `json:"source_name"`
+	// SourceAdapterID is which adapter this Content's Source came from
+	// ("substack" | "rss-media" | "youtube" | "twitter" | "instagram") —
+	// the client uses it to pick a static per-platform logo (Twitter icon,
+	// Instagram icon, ...), not per-account data resolved from the source
+	// itself.
+	SourceAdapterID string         `json:"source_adapter_id"`
+	Title           *string        `json:"title,omitempty"`
+	PublishedAt     time.Time      `json:"published_at"`
+	Blocks          []BlockSummary `json:"blocks"`
 	// Summary replaces the old per-block "excerpt" — one preview string per
 	// item, not one per text block. Content.Description if present,
 	// otherwise the first text block's truncated Markdown.

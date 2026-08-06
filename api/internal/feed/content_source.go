@@ -55,9 +55,9 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, curso
 	if err != nil {
 		return nil, nil, err
 	}
-	sourceNames := make(map[string]string, len(sources))
+	sourceMeta := make(map[string]sourceMetadata, len(sources))
 	for _, src := range sources {
-		sourceNames[src.ID] = src.Name
+		sourceMeta[src.ID] = sourceMetadata{Name: src.Name, AdapterID: src.AdapterID}
 	}
 
 	// candidates already come back from ListFeedVisibleContents in the
@@ -71,15 +71,15 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, curso
 
 	items := make([]FeedItem, len(ranked))
 	for i, c := range ranked {
-		items[i] = toFeedItem(c, blocksByContent[c.ID], sourceNames[c.SourceID])
+		items[i] = toFeedItem(c, blocksByContent[c.ID], sourceMeta[c.SourceID])
 	}
 
 	last := ranked[len(ranked)-1]
-	// Truncate to the UTC calendar day to match dbo.ListFeedVisibleContents'
+	// Truncate to the UTC hour to match dbo.ListFeedVisibleContents'
 	// feedCreatedAtBucket ordering — the cursor has to compare against the
 	// same truncated value the query sorts by, not the raw per-row
 	// CreatedAt, or pagination would desync from what's actually on screen.
-	next := &Cursor{CreatedAt: last.CreatedAt.UTC().Truncate(24 * time.Hour), PublishedAt: last.PublishedAt, ContentID: last.ID}
+	next := &Cursor{CreatedAt: last.CreatedAt.UTC().Truncate(time.Hour), PublishedAt: last.PublishedAt, ContentID: last.ID}
 
 	return items, next, nil
 }
@@ -121,7 +121,15 @@ func summaryFor(description *string, blocks []model.ContentBlock) *string {
 	return nil
 }
 
-func toFeedItem(c model.Content, blocks []model.ContentBlock, sourceName string) FeedItem {
+// sourceMetadata is the subset of a Content's Source that ContentPayload
+// actually needs — kept as its own small struct rather than passing
+// model.Source through, since Produce only ever looks up these two fields.
+type sourceMetadata struct {
+	Name      string
+	AdapterID string
+}
+
+func toFeedItem(c model.Content, blocks []model.ContentBlock, source sourceMetadata) FeedItem {
 	summaries := make([]BlockSummary, len(blocks))
 	for i, b := range blocks {
 		summaries[i] = toBlockSummary(b)
@@ -137,12 +145,13 @@ func toFeedItem(c model.Content, blocks []model.ContentBlock, sourceName string)
 		SourceID: c.SourceID,
 		Type:     dominantType(blocks),
 		Payload: ContentPayload{
-			ContentID:   c.ID,
-			SourceName:  sourceName,
-			Title:       title,
-			PublishedAt: c.PublishedAt,
-			Blocks:      summaries,
-			Summary:     summaryFor(c.Description, blocks),
+			ContentID:       c.ID,
+			SourceName:      source.Name,
+			SourceAdapterID: source.AdapterID,
+			Title:           title,
+			PublishedAt:     c.PublishedAt,
+			Blocks:          summaries,
+			Summary:         summaryFor(c.Description, blocks),
 		},
 	}
 }

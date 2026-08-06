@@ -158,18 +158,18 @@ func TestContentFeedSource_PublishedAtBreaksCreatedAtTie(t *testing.T) {
 	}
 }
 
-// TestContentFeedSource_SameDayCreatedAtTiesDespiteRaceyDifferences
+// TestContentFeedSource_SameHourCreatedAtTiesDespiteRaceyDifferences
 // reproduces the real bug this was fixed for: concurrent ingest workers
 // assign CreatedAt individually at DB-insert time, so two items from the
 // very same Discover() batch never actually get an identical CreatedAt —
 // they differ by however long the insert race took (here, a few seconds).
-// Without day-truncation that tiny difference alone decides the order and
+// Without hour-truncation that tiny difference alone decides the order and
 // PublishedAt never gets a chance to break the tie. recentlyPublished is
 // inserted first but published_at is a few seconds behind
 // earlierPublished's insert — expected order still puts recentlyPublished
-// first once same-day CreatedAt values are treated as tied and PublishedAt
-// actually gets to decide.
-func TestContentFeedSource_SameDayCreatedAtTiesDespiteRaceyDifferences(t *testing.T) {
+// first once same-hour CreatedAt values are treated as tied and
+// PublishedAt actually gets to decide.
+func TestContentFeedSource_SameHourCreatedAtTiesDespiteRaceyDifferences(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	a := &app.Context{Pool: pool, Config: &testConfig}
 	src := testutil.SeedSource(t, pool, "src-1")

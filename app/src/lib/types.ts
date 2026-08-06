@@ -29,6 +29,10 @@ export type BlockSummary = {
 export type ContentPayload = {
   content_id: string;
   source_name: string;
+  // Which adapter this Content's Source came from — used to pick a static
+  // per-platform logo (Twitter icon, Instagram icon, ...), not per-account
+  // data.
+  source_adapter_id: string;
   title?: string;
   published_at: string;
   blocks: BlockSummary[];

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AudioPlayer, Badge, Button, Markdown, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
+import { AudioPlayer, Badge, Button, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { getFeed } from '@/lib/feed';
 import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
@@ -314,10 +314,13 @@ function ContentRow({
 
   return (
     <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.md, gap: theme.spacing.xs }}>
-      <Text variant="caption" tone="secondary">
-        @{payload.source_name}
-        {daysAgo ? ` • ${daysAgo}` : ''}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
+        <SourceLogo adapterId={payload.source_adapter_id} size={20} />
+        <Text variant="caption" tone="secondary">
+          @{payload.source_name}
+          {daysAgo ? ` • ${daysAgo}` : ''}
+        </Text>
+      </View>
       {payload.title ? <Text variant="itemTitle">{payload.title}</Text> : null}
       <ContentMedia type={type} blocks={payload.blocks} isVisible={isVisible} />
       {payload.summary ? <Markdown size="small">{payload.summary}</Markdown> : null}

@@ -44,33 +44,36 @@ func GetContentByID(ctx context.Context, db DataSource, id string) (model.Conten
 	return content, nil
 }
 
-// feedCreatedAtBucket truncates CreatedAt to its UTC calendar day for
-// ordering purposes — see ListFeedVisibleContents' doc comment for why.
-// The double "AT TIME ZONE 'UTC'" is the standard idiom for a
-// timezone-deterministic truncation of a timestamptz: the first conversion
-// interprets created_at's instant as UTC wall-clock (timestamptz ->
-// timestamp), date_trunc snaps that wall-clock to its day boundary, and the
-// second conversion reinterprets that naive midnight as a UTC instant
+// feedCreatedAtBucket truncates CreatedAt to its UTC hour for ordering
+// purposes — see ListFeedVisibleContents' doc comment for why. The double
+// "AT TIME ZONE 'UTC'" is the standard idiom for a timezone-deterministic
+// truncation of a timestamptz: the first conversion interprets
+// created_at's instant as UTC wall-clock (timestamptz -> timestamp),
+// date_trunc snaps that wall-clock to its hour boundary, and the second
+// conversion reinterprets that naive hour-start as a UTC instant
 // (timestamp -> timestamptz) — so the result is directly comparable to
 // another timestamptz value regardless of the session's timezone setting.
-const feedCreatedAtBucket = `date_trunc('day', c.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`
+const feedCreatedAtBucket = `date_trunc('hour', c.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`
 
 // ListFeedVisibleContents returns Content that has a matching
 // EnrichedContent row (Feed's readiness criterion), strictly older than
 // the cursor, newest first. Two-level ordering: primarily by CreatedAt
-// truncated to its UTC calendar day (when it entered our system via
-// Ingest) rather than PublishedAt, so a backlog of old posts pulled in
-// from a newly-added source surfaces together as "new" instead of
-// scattering across the feed by however old the original posts happen to
-// be. Truncating to the day (not full precision) matters here: items from
-// the same Discover() batch get their own CreatedAt assigned individually,
-// at DB-insert time, by a pool of concurrent ingest workers — so their raw
+// truncated to its UTC hour (when it entered our system via Ingest)
+// rather than PublishedAt, so a backlog of old posts pulled in from a
+// newly-added source surfaces together as "new" instead of scattering
+// across the feed by however old the original posts happen to be.
+// Truncating to the hour (not full precision, and not a full day — an
+// earlier version of this bucketed by day, but that let a source with
+// several hours of pent-up backlog bury same-hour-but-actually-newer
+// content from other sources under it) matters here: items from the same
+// Discover() batch get their own CreatedAt assigned individually, at
+// DB-insert time, by a pool of concurrent ingest workers — so their raw
 // timestamps differ by however long that race took and are never actually
 // equal, which would make the PublishedAt tiebreak below never trigger.
-// Truncating to the day treats everything ingested on the same day as tied
-// on CreatedAt, so PublishedAt (most recently published first) actually
-// decides the order within that day, matching what "what's new to me"
-// should mean for a batch of items discovered together.
+// Truncating to the hour treats everything ingested in the same hour as
+// tied on CreatedAt, so PublishedAt (most recently published first)
+// actually decides the order within that hour, matching what "what's new
+// to me" should mean for a batch of items discovered together.
 // cursorCreatedAt == nil means "first page" — no cursor filter. Blocks are
 // NOT populated here; feed.ContentFeedSource batches those separately
 // across the whole candidate set (avoids N+1).

@@ -8,8 +8,8 @@ import (
 )
 
 // Cursor identifies a position in the feed's chronological ordering —
-// primarily CreatedAt (ingestion time, truncated to its UTC calendar day),
-// PublishedAt as the tiebreaker within that day (see
+// primarily CreatedAt (ingestion time, truncated to its UTC hour),
+// PublishedAt as the tiebreaker within that hour (see
 // dbo.ListFeedVisibleContents for why). CreatedAt here is always already
 // truncated — see ContentFeedSource.Produce.
 type Cursor struct {
