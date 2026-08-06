@@ -29,4 +29,3 @@ enrichment:
 feed:
   default_page_size: 20
   overfetch_factor: 5
-  chronology_decay: 0.05

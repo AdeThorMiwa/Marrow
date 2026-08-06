@@ -6,7 +6,11 @@ import (
 )
 
 func TestCursor_EncodeDecode_RoundTrip(t *testing.T) {
-	c := &Cursor{PublishedAt: time.Now().Truncate(time.Second).UTC(), ContentID: "content-1"}
+	c := &Cursor{
+		CreatedAt:   time.Now().Truncate(time.Second).UTC(),
+		PublishedAt: time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		ContentID:   "content-1",
+	}
 
 	encoded := EncodeCursor(c)
 	if encoded == "" {
@@ -17,7 +21,7 @@ func TestCursor_EncodeDecode_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeCursor failed: %v", err)
 	}
-	if !decoded.PublishedAt.Equal(c.PublishedAt) || decoded.ContentID != c.ContentID {
+	if !decoded.CreatedAt.Equal(c.CreatedAt) || !decoded.PublishedAt.Equal(c.PublishedAt) || decoded.ContentID != c.ContentID {
 		t.Errorf("round-trip mismatch: want %+v, got %+v", c, decoded)
 	}
 }

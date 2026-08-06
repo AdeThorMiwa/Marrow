@@ -22,9 +22,22 @@ type SourceAdapter interface {
 
 	Name() string
 
-	// Retrieve source by identify, this is also use to check if an identify for a given source is valid
-	// returns a source config for valid identifiers and error otherwise
-	Resolve(identifier string) (model.SourceConfig, error)
+	// Resolve turns a raw identifier (a publication URL or a share link of
+	// any kind — post, comment, chat, or a profile/Note that isn't tied to
+	// one publication) into candidate SourceConfigs. Most identifiers
+	// resolve unambiguously to exactly one candidate; a profile/Note link
+	// can resolve to zero, one, or many. error is reserved for "couldn't
+	// even attempt this" (network failure, malformed URL) — an empty slice
+	// with a nil error means the identifier was understood but no
+	// candidate publication was found.
+	Resolve(identifier string) ([]model.SourceConfig, error)
+
+	// Verify checks whether config.Identifier still resolves to exactly
+	// this one candidate — the gate AddSources calls right before
+	// persisting, since a config produced from a Note/profile resolve can
+	// be ambiguous or stale by the time the caller is ready to add it.
+	// Returns nil iff valid.
+	Verify(config model.SourceConfig) error
 
 	// Discover fetches up to limit published items from a known source.
 	// error is reserved for adapter/programming failures (bad config, etc.);

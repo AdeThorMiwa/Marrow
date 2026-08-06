@@ -105,11 +105,14 @@ func TestFullPipeline_RealAudioSource_EndToEnd(t *testing.T) {
 	src := testutil.SeedSourceWith(t, pool, "src-npr", "rss-media", "https://feeds.npr.org/510318/podcast.xml")
 
 	sourceAdapter := adapter.NewRSSMediaAdapter()
-	config, err := sourceAdapter.Resolve(src.Identifier)
+	configs, err := sourceAdapter.Resolve(src.Identifier)
 	if err != nil {
 		t.Fatalf("Resolve failed: %v", err)
 	}
-	result, err := sourceAdapter.Discover(config, 1)
+	if len(configs) != 1 {
+		t.Fatalf("expected exactly one candidate, got %d", len(configs))
+	}
+	result, err := sourceAdapter.Discover(configs[0], 1)
 	if err != nil || len(result.Items) == 0 {
 		t.Fatalf("Discover failed to produce an item: err=%v items=%d", err, len(result.Items))
 	}
@@ -150,11 +153,14 @@ func TestFullPipeline_RealVideoSource_EndToEnd(t *testing.T) {
 	src := testutil.SeedSourceWith(t, pool, "src-floss", "rss-media", "https://feeds.twit.tv/floss_video_hd.xml")
 
 	sourceAdapter := adapter.NewRSSMediaAdapter()
-	config, err := sourceAdapter.Resolve(src.Identifier)
+	configs, err := sourceAdapter.Resolve(src.Identifier)
 	if err != nil {
 		t.Skipf("feeds.twit.tv unreachable right now, skipping real-infra check: %v", err)
 	}
-	result, err := sourceAdapter.Discover(config, 20)
+	if len(configs) != 1 {
+		t.Fatalf("expected exactly one candidate, got %d", len(configs))
+	}
+	result, err := sourceAdapter.Discover(configs[0], 20)
 	if err != nil {
 		t.Fatalf("Discover failed: %v", err)
 	}

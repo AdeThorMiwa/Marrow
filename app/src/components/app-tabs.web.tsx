@@ -21,6 +21,9 @@ export default function AppTabs() {
           <TabTrigger name="home" href="/" asChild>
             <TabButton>Home</TabButton>
           </TabTrigger>
+          <TabTrigger name="sources" href="/sources" asChild>
+            <TabButton>Sources</TabButton>
+          </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Components</TabButton>
           </TabTrigger>
@@ -39,8 +42,6 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
       style={{
         paddingVertical: theme.spacing.sm,
         paddingHorizontal: theme.spacing.lg,
-        borderBottomWidth: isFocused ? theme.borderWidthError : 0,
-        borderColor: theme.colors.ink,
       }}>
       <Text variant="label" tone={isFocused ? 'primary' : 'secondary'}>
         {children}
@@ -58,8 +59,8 @@ function BoxyTabList({ children, ...props }: TabListProps) {
       style={{
         flexDirection: 'row',
         justifyContent: 'center',
-        borderTopWidth: theme.borderWidth,
-        borderColor: theme.colors.ink,
+        borderTopWidth: theme.hairlineWidth,
+        borderColor: theme.colors.divider,
         backgroundColor: theme.colors.background,
       }}>
       {children}

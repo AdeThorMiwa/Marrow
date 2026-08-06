@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
 
 import {
   borderWidth,
@@ -24,6 +24,7 @@ type Theme = {
   radius: number;
   borderWidth: number;
   borderWidthError: number;
+  hairlineWidth: number; // thinnest renderable line — for divider-style separators, not solid/functional borders
 };
 
 const ThemeContext = createContext<Theme | null>(null);
@@ -46,6 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       radius,
       borderWidth,
       borderWidthError,
+      hairlineWidth: StyleSheet.hairlineWidth,
     }),
     [colorScheme]
   );

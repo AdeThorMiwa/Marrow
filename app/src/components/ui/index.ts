@@ -1,6 +1,9 @@
+export { AudioPlayer, type AudioPlayerProps } from './audio-player';
 export { Avatar, type AvatarProps } from './avatar';
 export { Badge, type BadgeProps } from './badge';
 export { Button, type ButtonProps } from './button';
+export { Markdown, type MarkdownProps } from './markdown';
 export { Surface, type SurfaceProps } from './surface';
 export { Text, type TextProps } from './text';
 export { TextInput, type TextInputProps } from './text-input';
+export { VideoPlayer, type VideoPlayerProps } from './video-player';

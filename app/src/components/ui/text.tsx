@@ -18,7 +18,7 @@ const toneKey = {
 export function Text({ variant = 'body', tone = 'primary', voice = 'user', style, ...props }: TextProps) {
   const theme = useTheme();
   const scale = theme.typeScale[variant];
-  const family = theme.fontFamily[scale.family as 'sans' | 'voice'];
+  const family = theme.fontFamily[scale.fontWeight as keyof typeof theme.fontFamily];
 
   const resolvedStyle: TextStyle = {
     fontSize: scale.fontSize,

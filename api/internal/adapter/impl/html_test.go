@@ -45,3 +45,47 @@ func TestHtmlToMarkdown_EmptyInput(t *testing.T) {
 		t.Errorf("expected empty string for empty input, got %q", got)
 	}
 }
+
+func TestExtractLeadingImage_LinkedImage(t *testing.T) {
+	// html-to-markdown's real output for a Substack cover image (an <a>
+	// wrapping an <img>, the click-through-to-post pattern).
+	md := "[![Cover](https://cdn.example.com/cover.jpg)](https://example.substack.com/p/post) Some real text follows."
+
+	imageURL, rest, ok := extractLeadingImage(md)
+	if !ok {
+		t.Fatal("expected a leading image to be detected")
+	}
+	if imageURL != "https://cdn.example.com/cover.jpg" {
+		t.Errorf("expected the inner image URL, got %q", imageURL)
+	}
+	if rest != "Some real text follows." {
+		t.Errorf("expected the image+link stripped from the front, got %q", rest)
+	}
+}
+
+func TestExtractLeadingImage_PlainImage(t *testing.T) {
+	md := "![alt text](https://cdn.example.com/img.jpg)\n\nBody text."
+
+	imageURL, rest, ok := extractLeadingImage(md)
+	if !ok {
+		t.Fatal("expected a leading image to be detected")
+	}
+	if imageURL != "https://cdn.example.com/img.jpg" {
+		t.Errorf("expected the image URL, got %q", imageURL)
+	}
+	if rest != "Body text." {
+		t.Errorf("expected the image stripped from the front, got %q", rest)
+	}
+}
+
+func TestExtractLeadingImage_NoLeadingImage(t *testing.T) {
+	md := "Just a normal paragraph with [a link](https://example.com) in it."
+
+	_, rest, ok := extractLeadingImage(md)
+	if ok {
+		t.Fatal("expected no leading image to be detected")
+	}
+	if rest != md {
+		t.Errorf("expected markdown unchanged when there's no leading image, got %q", rest)
+	}
+}

@@ -1,32 +1,25 @@
-import { Platform } from 'react-native';
-
-// Two families only — serif reserved exclusively for item titles, sans for
-// everything else. See docs/design-system/design.md §2.2.
+// Single family across the whole app — Smooch Sans (Google Fonts), loaded
+// via @expo-google-fonts/smooch-sans in the root layout before first render.
+// Unlike Tulpen One/Unica One, this ships real weight files, so each
+// typeScale entry below maps to its own font file rather than relying on
+// synthetic/faux bold.
 export const fontFamily = {
-  voice: Platform.select({
-    ios: 'ui-serif',
-    android: 'serif',
-    web: 'Georgia, "Times New Roman", serif',
-    default: 'serif',
-  }) as string, // item titles only
-  sans: Platform.select({
-    ios: 'system-ui',
-    android: 'sans-serif',
-    web: 'system-ui, sans-serif',
-    default: 'sans-serif',
-  }) as string, // everything else
-};
+  '400': 'SmoochSans_400Regular',
+  '500': 'SmoochSans_500Medium',
+  '600': 'SmoochSans_600SemiBold',
+  '700': 'SmoochSans_700Bold',
+} as const;
 
 export const typeScale = {
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '400', family: 'sans' },
-  label: { fontSize: 14, lineHeight: 20, fontWeight: '500', family: 'sans' },
-  body: { fontSize: 16, lineHeight: 26, fontWeight: '400', family: 'sans' },
-  bodyLarge: { fontSize: 18, lineHeight: 29, fontWeight: '400', family: 'sans' },
-  heading3: { fontSize: 20, lineHeight: 26, fontWeight: '600', family: 'sans' },
-  heading2: { fontSize: 24, lineHeight: 30, fontWeight: '600', family: 'sans' },
-  heading1: { fontSize: 32, lineHeight: 38, fontWeight: '700', family: 'sans' },
-  // The one serif use-case — FeedItem/ContentItem titles only.
-  itemTitle: { fontSize: 20, lineHeight: 27, fontWeight: '400', family: 'voice' },
+  caption: { fontSize: 15, lineHeight: 20, fontWeight: '400' },
+  label: { fontSize: 17, lineHeight: 24, fontWeight: '500' },
+  body: { fontSize: 24, lineHeight: 30, fontWeight: '400' },
+  bodyLarge: { fontSize: 22, lineHeight: 34, fontWeight: '400' },
+  heading3: { fontSize: 24, lineHeight: 31, fontWeight: '600' },
+  heading2: { fontSize: 30, lineHeight: 37, fontWeight: '600' },
+  heading1: { fontSize: 40, lineHeight: 46, fontWeight: '700' },
+  // The one distinct use-case — FeedItem/ContentItem titles only.
+  itemTitle: { fontSize: 28, lineHeight: 34, fontWeight: '400' },
 } as const;
 
 export type TypeVariant = keyof typeof typeScale;

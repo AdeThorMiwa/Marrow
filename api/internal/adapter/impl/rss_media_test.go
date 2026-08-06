@@ -88,12 +88,15 @@ const (
 func TestDiscover_RealNPRFeed_ProducesAudioBlock(t *testing.T) {
 	a := NewRSSMediaAdapter()
 
-	config, err := a.Resolve(nprUpFirstFeed)
+	configs, err := a.Resolve(nprUpFirstFeed)
 	if err != nil {
 		t.Fatalf("Resolve failed: %v", err)
 	}
+	if len(configs) != 1 {
+		t.Fatalf("expected exactly one candidate, got %d", len(configs))
+	}
 
-	result, err := a.Discover(config, 5)
+	result, err := a.Discover(configs[0], 5)
 	if err != nil {
 		t.Fatalf("Discover failed: %v", err)
 	}
@@ -126,14 +129,17 @@ func TestDiscover_RealNPRFeed_ProducesAudioBlock(t *testing.T) {
 func TestDiscover_RealFLOSSVideoFeed_ProducesVideoBlock(t *testing.T) {
 	a := NewRSSMediaAdapter()
 
-	config, err := a.Resolve(flossWeeklyVideoFeed)
+	configs, err := a.Resolve(flossWeeklyVideoFeed)
 	if err != nil {
 		t.Skipf("feeds.twit.tv unreachable right now, skipping real-infra check: %v", err)
+	}
+	if len(configs) != 1 {
+		t.Fatalf("expected exactly one candidate, got %d", len(configs))
 	}
 
 	// Ask for more than the top item — the small announcement clip used
 	// for the full pipeline test isn't necessarily first in the feed.
-	result, err := a.Discover(config, 10)
+	result, err := a.Discover(configs[0], 10)
 	if err != nil {
 		t.Fatalf("Discover failed: %v", err)
 	}
@@ -155,11 +161,14 @@ func TestDiscover_RealFLOSSVideoFeed_ProducesVideoBlock(t *testing.T) {
 
 func TestMediaResolverResolve_RealEnclosure(t *testing.T) {
 	a := NewRSSMediaAdapter()
-	config, err := a.Resolve(nprUpFirstFeed)
+	configs, err := a.Resolve(nprUpFirstFeed)
 	if err != nil {
 		t.Fatalf("Resolve failed: %v", err)
 	}
-	result, err := a.Discover(config, 1)
+	if len(configs) != 1 {
+		t.Fatalf("expected exactly one candidate, got %d", len(configs))
+	}
+	result, err := a.Discover(configs[0], 1)
 	if err != nil || len(result.Items) == 0 {
 		t.Fatalf("Discover failed to produce an item: err=%v items=%d", err, len(result.Items))
 	}

@@ -21,6 +21,24 @@ export function Button({ variant = 'solid', size = 'md', disabled, onPress, chil
   const borderColor = variant === 'ghost' ? 'transparent' : theme.colors.ink;
   const textColor = variant === 'solid' ? theme.colors.background : theme.colors.ink;
 
+  // Static styling is computed here, not inside Pressable's style-callback —
+  // on at least one real-device/Expo-Go combination, a Pressable's
+  // function-valued `style` prop was observed silently failing to apply
+  // (button stayed hit-testable but fully invisible: no fill, no border).
+  // Only the genuinely pressed-dependent bit (opacity) stays in the callback.
+  const baseStyle = {
+    minHeight: size === 'md' ? MIN_TOUCH_TARGET : 36,
+    minWidth: size === 'md' ? MIN_TOUCH_TARGET : undefined,
+    paddingHorizontal: size === 'md' ? theme.spacing.lg : theme.spacing.md,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor,
+    borderWidth: variant === 'ghost' ? 0 : theme.borderWidth,
+    borderColor,
+    borderRadius: theme.radius,
+    ...(variant === "outline" && { borderStyle: "solid" as "solid"})
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -28,20 +46,9 @@ export function Button({ variant = 'solid', size = 'md', disabled, onPress, chil
       disabled={disabled}
       onPress={onPress}
       hitSlop={size === 'sm' ? 8 : undefined}
-      style={({ pressed }) => ({
-        minHeight: size === 'md' ? MIN_TOUCH_TARGET : 36,
-        minWidth: size === 'md' ? MIN_TOUCH_TARGET : undefined,
-        paddingHorizontal: size === 'md' ? theme.spacing.lg : theme.spacing.md,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor,
-        borderWidth: variant === 'ghost' ? 0 : theme.borderWidth,
-        borderColor,
-        borderRadius: theme.radius,
-        opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
-      })}
+      style={({ pressed }) => ({ ...baseStyle, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
       {...props}>
-      <Text variant="label" style={{ color: textColor }}>
+      <Text variant="label" className='text-center' style={{ color: textColor }}>
         {children}
       </Text>
     </Pressable>

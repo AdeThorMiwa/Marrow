@@ -135,6 +135,12 @@ func (w *EnrichmentWorker) resolveText(ctx context.Context, content model.Conten
 				parts = append(parts, *b.Caption)
 			}
 			parts = append(parts, resp.Text)
+
+		case model.BlockImage:
+			// No transcription — an image block contributes nothing to the
+			// composite text today. Its Caption (if any) would be
+			// meaningful, but Substack's extracted cover images don't set
+			// one; revisit if a future adapter does.
 		}
 	}
 

@@ -46,19 +46,26 @@ func GetContentByID(ctx context.Context, db DataSource, id string) (model.Conten
 
 // ListFeedVisibleContents returns Content that has a matching
 // EnrichedContent row (Feed's readiness criterion), strictly older than
-// the cursor, newest first. cursorPublishedAt == nil means "first page" —
-// no cursor filter. Blocks are NOT populated here; feed.ContentFeedSource
-// batches those separately across the whole candidate set (avoids N+1).
-func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorPublishedAt *time.Time, cursorContentID string, limit int) ([]model.Content, error) {
+// the cursor, newest first. Two-level ordering: primarily by CreatedAt
+// (when it entered our system via Ingest, full precision — not truncated)
+// rather than PublishedAt, so a backlog of old posts pulled in from a
+// newly-added source surfaces together as "new" instead of scattering
+// across the feed by however old the original posts happen to be; ties on
+// CreatedAt (e.g. several items ingested in the same batch) break by
+// PublishedAt, most recently published first.
+// cursorCreatedAt == nil means "first page" — no cursor filter. Blocks are
+// NOT populated here; feed.ContentFeedSource batches those separately
+// across the whole candidate set (avoids N+1).
+func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorCreatedAt, cursorPublishedAt *time.Time, cursorContentID string, limit int) ([]model.Content, error) {
 	var rows pgx.Rows
 	var err error
 
-	if cursorPublishedAt == nil {
+	if cursorCreatedAt == nil {
 		rows, err = db.Query(ctx, `
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
 			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
-			ORDER BY c.published_at DESC, c.id DESC
+			ORDER BY c.created_at DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
 		`, limit)
 	} else {
@@ -66,10 +73,10 @@ func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorPublished
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
 			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
-			  AND (c.published_at, c.id) < ($2, $3)
-			ORDER BY c.published_at DESC, c.id DESC
+			  AND (c.created_at, c.published_at, c.id) < ($2, $3, $4)
+			ORDER BY c.created_at DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
-		`, limit, *cursorPublishedAt, cursorContentID)
+		`, limit, *cursorCreatedAt, *cursorPublishedAt, cursorContentID)
 	}
 	if err != nil {
 		return nil, err

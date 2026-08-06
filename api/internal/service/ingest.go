@@ -8,15 +8,18 @@ import (
 	model "marrow/internal/model"
 )
 
-func ResolveUrl(url string) (model.SourceConfig, error) {
+// ResolveUrl tries each registered adapter until one recognizes the
+// identifier, returning its candidates — which may be empty (recognized
+// but no publication found, e.g. an empty profile) even with a nil error.
+func ResolveUrl(url string) ([]model.SourceConfig, error) {
 	for _, adp := range registry.SourceAdapters() {
-		config, err := adp.Resolve(url)
+		configs, err := adp.Resolve(url)
 		if err == nil {
-			return config, nil
+			return configs, nil
 		}
 	}
 
-	return model.SourceConfig{}, fmt.Errorf("no adapter found for URL: %s", url)
+	return nil, fmt.Errorf("no adapter found for URL: %s", url)
 }
 
 func FetchContents(config model.SourceConfig, limit int) (api.DiscoverResult, error) {

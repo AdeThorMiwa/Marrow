@@ -16,8 +16,8 @@ export function Surface({ bordered = true, padding = 'md', style, ...props }: Su
       style={[
         {
           backgroundColor: theme.colors.background,
-          borderWidth: bordered ? theme.borderWidth : 0,
-          borderColor: theme.colors.ink,
+          borderWidth: bordered ? theme.hairlineWidth : 0,
+          borderColor: theme.colors.divider,
           borderRadius: theme.radius,
           padding: paddingValue,
         },

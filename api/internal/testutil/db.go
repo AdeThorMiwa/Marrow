@@ -1,8 +1,9 @@
 // Package testutil provides shared test fixtures for the ingest layer.
-// There is no separate test database in this project yet (see
-// docs/ingest/design.md open questions) — tests run against the same local
-// Postgres used by `marrow serve` in development, truncating ingest tables
-// before each test to stay independent.
+// Tests run against a dedicated "marrow_test" database (same Postgres
+// instance, separate database) — not the "marrow" database `marrow serve`
+// uses. Real dev data (Sources added through the app) was getting wiped by
+// TRUNCATE below every time the Go test suite ran, back when both pointed
+// at the same database.
 package testutil
 
 import (
@@ -23,7 +24,7 @@ func ConnectDB(t *testing.T) *pgxpool.Pool {
 
 	cfg := lib.DatabaseConfig{
 		Host: "localhost", Port: "5432", User: "postgres", Password: "postgres",
-		Name: "marrow", SSLMode: "disable",
+		Name: "marrow_test", SSLMode: "disable",
 	}
 
 	pool, err := database.Connect(context.Background(), cfg)

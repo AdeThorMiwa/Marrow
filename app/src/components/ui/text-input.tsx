@@ -43,7 +43,7 @@ export function TextInput({ label, error, style, onFocus, onBlur, ...props }: Te
             paddingVertical: theme.spacing.sm,
             fontSize: theme.typeScale.body.fontSize,
             lineHeight: theme.typeScale.body.lineHeight,
-            fontFamily: theme.fontFamily.sans,
+            fontFamily: theme.fontFamily['400'],
             color: theme.colors.ink,
           },
           style,

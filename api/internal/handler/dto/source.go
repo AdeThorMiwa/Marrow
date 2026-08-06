@@ -6,8 +6,34 @@ import (
 	model "marrow/internal/model"
 )
 
-type CreateSourceRequest struct {
+type SourceConfigDTO struct {
 	Identifier string `json:"identifier" binding:"required"`
+	AdapterID  string `json:"adapter_id" binding:"required"`
+	Name       string `json:"name"`
+}
+
+func FromSourceConfig(c model.SourceConfig) SourceConfigDTO {
+	return SourceConfigDTO{Identifier: c.Identifier, AdapterID: c.AdapterID, Name: c.Name}
+}
+
+func (d SourceConfigDTO) ToSourceConfig() model.SourceConfig {
+	return model.SourceConfig{Identifier: d.Identifier, AdapterID: d.AdapterID, Name: d.Name}
+}
+
+// ResolveSourceRequest is the POST /sources/resolve body — a raw identifier
+// or share link of any kind.
+type ResolveSourceRequest struct {
+	Identifier string `json:"identifier" binding:"required"`
+}
+
+type ResolveSourceResponse struct {
+	Candidates []SourceConfigDTO `json:"candidates"`
+}
+
+// CreateSourceRequest is the POST /sources body — one or more already-
+// resolved candidates (from a prior /sources/resolve call) to verify and add.
+type CreateSourceRequest struct {
+	Sources []SourceConfigDTO `json:"sources" binding:"required,min=1,dive"`
 }
 
 type SourceResponse struct {

@@ -14,14 +14,17 @@ import (
 	"github.com/google/uuid"
 )
 
-func seedReadyContent(t *testing.T, a *app.Context, sourceID string, publishedAt time.Time) model.Content {
+// seedReadyContent takes createdAt explicitly (feed ordering/pagination is
+// keyed off it, not publishedAt — see dbo.ListFeedVisibleContents) rather
+// than relying on real wall-clock time between sequential seed calls.
+func seedReadyContent(t *testing.T, a *app.Context, sourceID string, publishedAt, createdAt time.Time) model.Content {
 	t.Helper()
 	ctx := context.Background()
 
 	content := model.Content{
 		ID: uuid.NewString(), SourceID: sourceID, URL: "https://example.com/" + uuid.NewString(),
 		Title: "Test Content", PublishedAt: publishedAt,
-		Metadata: map[string]any{}, CreatedAt: time.Now(),
+		Metadata: map[string]any{}, CreatedAt: createdAt,
 	}
 	if ok, err := dbo.InsertContent(ctx, a.Pool, content); err != nil || !ok {
 		t.Fatalf("failed to seed content: ok=%v err=%v", ok, err)
@@ -48,7 +51,7 @@ func TestContentFeedSource_OnlyReturnsFeedVisibleContent(t *testing.T) {
 	a := &app.Context{Pool: pool, Config: &testConfig}
 	src := testutil.SeedSource(t, pool, "src-1")
 
-	ready := seedReadyContent(t, a, src.ID, time.Now())
+	ready := seedReadyContent(t, a, src.ID, time.Now(), time.Now())
 
 	// Not-ready content: has a Content+block, but no EnrichedContent.
 	notReady := model.Content{
@@ -80,9 +83,11 @@ func TestContentFeedSource_CursorPagination(t *testing.T) {
 	src := testutil.SeedSource(t, pool, "src-1")
 
 	now := time.Now()
-	oldest := seedReadyContent(t, a, src.ID, now.Add(-2*time.Hour))
-	middle := seedReadyContent(t, a, src.ID, now.Add(-1*time.Hour))
-	newest := seedReadyContent(t, a, src.ID, now)
+	// publishedAt is deliberately the same (or even reversed) across all
+	// three — proves ordering follows createdAt, not publishedAt.
+	oldest := seedReadyContent(t, a, src.ID, now, now.Add(-2*time.Hour))
+	middle := seedReadyContent(t, a, src.ID, now, now.Add(-1*time.Hour))
+	newest := seedReadyContent(t, a, src.ID, now, now)
 
 	s := &feed.ContentFeedSource{}
 
@@ -111,6 +116,46 @@ func TestContentFeedSource_CursorPagination(t *testing.T) {
 	}
 }
 
+// TestContentFeedSource_PublishedAtBreaksCreatedAtTie is the exact scenario
+// requested: vid-1 (created today, published yesterday), vid-2 (created
+// today, published today), vid-3 (created yesterday, published yesterday).
+// Expected order: vid-2, vid-1, vid-3 — CreatedAt is the primary key (both
+// "today" items outrank the "yesterday" one regardless of PublishedAt), and
+// PublishedAt breaks the tie between same-CreatedAt items.
+func TestContentFeedSource_PublishedAtBreaksCreatedAtTie(t *testing.T) {
+	pool := testutil.ConnectDB(t)
+	a := &app.Context{Pool: pool, Config: &testConfig}
+	src := testutil.SeedSource(t, pool, "src-1")
+
+	today := time.Now()
+	yesterday := today.Add(-24 * time.Hour)
+
+	vid1 := seedReadyContent(t, a, src.ID, yesterday, today)
+	vid2 := seedReadyContent(t, a, src.ID, today, today)
+	vid3 := seedReadyContent(t, a, src.ID, yesterday, yesterday)
+
+	s := &feed.ContentFeedSource{}
+	items, _, err := s.Produce(context.Background(), a, nil, 10)
+	if err != nil {
+		t.Fatalf("Produce failed: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected 3 items, got %d", len(items))
+	}
+
+	gotOrder := []string{
+		items[0].Payload.(feed.ContentPayload).ContentID,
+		items[1].Payload.(feed.ContentPayload).ContentID,
+		items[2].Payload.(feed.ContentPayload).ContentID,
+	}
+	wantOrder := []string{vid2.ID, vid1.ID, vid3.ID}
+	for i := range wantOrder {
+		if gotOrder[i] != wantOrder[i] {
+			t.Fatalf("expected order [vid2, vid1, vid3], got content IDs %v", gotOrder)
+		}
+	}
+}
+
 func TestSourceHealthFeedSource_AnchorsToLastItemFromStaleSource(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	a := &app.Context{Pool: pool, Config: &testConfig}
@@ -122,8 +167,8 @@ func TestSourceHealthFeedSource_AnchorsToLastItemFromStaleSource(t *testing.T) {
 		t.Fatalf("failed to mark source stale: %v", err)
 	}
 
-	c1 := seedReadyContent(t, a, src.ID, time.Now().Add(-time.Hour))
-	c2 := seedReadyContent(t, a, src.ID, time.Now())
+	c1 := seedReadyContent(t, a, src.ID, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour))
+	c2 := seedReadyContent(t, a, src.ID, time.Now(), time.Now())
 
 	page := []feed.FeedItem{
 		{AnchorID: c1.ID, SourceID: src.ID, Type: "content"},
@@ -152,7 +197,7 @@ func TestSourceHealthFeedSource_SkipsHealthySources(t *testing.T) {
 	a := &app.Context{Pool: pool, Config: &testConfig}
 	src := testutil.SeedSource(t, pool, "src-1") // HealthOK by default
 
-	c1 := seedReadyContent(t, a, src.ID, time.Now())
+	c1 := seedReadyContent(t, a, src.ID, time.Now(), time.Now())
 	page := []feed.FeedItem{{AnchorID: c1.ID, SourceID: src.ID, Type: "content"}}
 
 	s := &feed.SourceHealthFeedSource{}

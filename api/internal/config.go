@@ -49,9 +49,8 @@ type EnrichmentConfig struct {
 }
 
 type FeedConfig struct {
-	DefaultPageSize int     `mapstructure:"default_page_size"`
-	OverfetchFactor int     `mapstructure:"overfetch_factor"`
-	ChronologyDecay float64 `mapstructure:"chronology_decay"`
+	DefaultPageSize int `mapstructure:"default_page_size"`
+	OverfetchFactor int `mapstructure:"overfetch_factor"`
 }
 
 func Load() (*Config, error) {

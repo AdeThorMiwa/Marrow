@@ -10,14 +10,20 @@ import (
 	"marrow/internal/testutil"
 )
 
-func TestAddSource_PersistsResolvedSource(t *testing.T) {
+func TestAddSources_PersistsResolvedSource(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	a := &app.Context{Pool: pool}
 
-	src, err := ingest.AddSource(context.Background(), a, "https://debliu.substack.com")
+	configs := []model.SourceConfig{{Identifier: "https://debliu.substack.com", AdapterID: "substack", Name: "Perspectives"}}
+
+	sources, err := ingest.AddSources(context.Background(), a, configs)
 	if err != nil {
-		t.Fatalf("AddSource failed: %v", err)
+		t.Fatalf("AddSources failed: %v", err)
 	}
+	if len(sources) != 1 {
+		t.Fatalf("expected exactly one source, got %d", len(sources))
+	}
+	src := sources[0]
 
 	if src.AdapterID != "substack" {
 		t.Errorf("expected adapter substack, got %s", src.AdapterID)
@@ -35,12 +41,14 @@ func TestAddSource_PersistsResolvedSource(t *testing.T) {
 	}
 }
 
-func TestAddSource_UnresolvableIdentifierErrors(t *testing.T) {
+func TestAddSources_UnverifiableConfigErrors(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	a := &app.Context{Pool: pool}
 
-	_, err := ingest.AddSource(context.Background(), a, "https://completely-unsupported-domain.com")
+	configs := []model.SourceConfig{{Identifier: "https://completely-unsupported-domain.com", AdapterID: "substack", Name: "bogus"}}
+
+	_, err := ingest.AddSources(context.Background(), a, configs)
 	if err == nil {
-		t.Fatal("expected an error for an unresolvable identifier, got nil")
+		t.Fatal("expected an error for an unverifiable config, got nil")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"marrow/internal/app"
 	"marrow/internal/database/dbo"
 	"marrow/internal/handler/dto"
+	model "marrow/internal/model"
 	ingest "marrow/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -19,8 +20,31 @@ func NewSourceHandler(app *app.Context) *SourceHandler {
 	return &SourceHandler{App: app}
 }
 
-// Create handles POST /sources — resolves the submitted identifier via the
-// adapter registry and persists it as a Source (Req 1).
+// Resolve handles POST /sources/resolve — turns a raw identifier or share
+// link into candidate sources, without persisting anything.
+func (h *SourceHandler) Resolve(c *gin.Context) {
+	var req dto.ResolveSourceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	configs, err := ingest.ResolveUrl(req.Identifier)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	candidates := make([]dto.SourceConfigDTO, len(configs))
+	for i, cfg := range configs {
+		candidates[i] = dto.FromSourceConfig(cfg)
+	}
+
+	c.JSON(http.StatusOK, dto.ResolveSourceResponse{Candidates: candidates})
+}
+
+// Create handles POST /sources — verifies every submitted candidate and, if
+// all are valid, persists them as Sources (Req 1).
 func (h *SourceHandler) Create(c *gin.Context) {
 	var req dto.CreateSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -28,13 +52,23 @@ func (h *SourceHandler) Create(c *gin.Context) {
 		return
 	}
 
-	source, err := ingest.AddSource(c.Request.Context(), h.App, req.Identifier)
+	configs := make([]model.SourceConfig, len(req.Sources))
+	for i, s := range req.Sources {
+		configs[i] = s.ToSourceConfig()
+	}
+
+	sources, err := ingest.AddSources(c.Request.Context(), h.App, configs)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto.FromSource(source))
+	responses := make([]dto.SourceResponse, len(sources))
+	for i, s := range sources {
+		responses[i] = dto.FromSource(s)
+	}
+
+	c.JSON(http.StatusCreated, responses)
 }
 
 // List handles GET /sources — lists all Sources.

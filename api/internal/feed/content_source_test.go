@@ -3,7 +3,6 @@ package feed
 import (
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestTruncateExcerpt_UnderLimit(t *testing.T) {
@@ -42,12 +41,33 @@ func TestTruncateExcerpt_NoWhitespaceBoundary_HardCuts(t *testing.T) {
 	}
 }
 
-func TestChronologyScore_MonotonicallyDecreasesWithAge(t *testing.T) {
-	decay := 0.05
-	recent := chronologyScore(time.Now(), decay)
-	older := chronologyScore(time.Now().Add(-48*time.Hour), decay)
+// TestMarkdownToPlainText_StripsImageLinkWithNoInternalWhitespace is a
+// regression test for a real production crash: a leading
+// `[![alt](long-url)](long-url)` has no internal whitespace, so truncating
+// it as raw Markdown at a 280-char/last-whitespace boundary cut mid-URL,
+// producing broken Markdown that crashed the client's renderer (unterminated
+// link). toBlockSummary now runs markdownToPlainText first so
+// truncateExcerpt only ever sees plain text.
+func TestMarkdownToPlainText_StripsImageLinkWithNoInternalWhitespace(t *testing.T) {
+	longURL := "https://substackcdn.com/image/fetch/" + strings.Repeat("x", 300)
+	md := "[![](" + longURL + ")](" + longURL + ") Replay now available, see the recording below."
 
-	if !(recent > older) {
-		t.Errorf("expected recent score (%f) > older score (%f)", recent, older)
+	plain := markdownToPlainText(md)
+	if strings.Contains(plain, "http") {
+		t.Errorf("expected image/link URLs stripped, got %q", plain)
+	}
+
+	excerpt := truncateExcerpt(plain, 280)
+	if strings.Contains(excerpt, "(") || strings.Contains(excerpt, "[") {
+		t.Errorf("expected excerpt free of Markdown syntax, got %q", excerpt)
 	}
 }
+
+func TestMarkdownToPlainText_LinkKeepsText(t *testing.T) {
+	got := markdownToPlainText("Check out [my post](https://example.com/p/slug) today.")
+	want := "Check out my post today."
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+

@@ -48,16 +48,31 @@ func (a *RSSMediaSourceAdapter) Name() string { return a.name }
 // Resolve parses the identifier directly as a feed URL — no URL
 // transformation, unlike Substack's /feed-suffix heuristic. Podcast feed
 // URLs are already direct XML endpoints.
-func (a *RSSMediaSourceAdapter) Resolve(identifier string) (model.SourceConfig, error) {
+func (a *RSSMediaSourceAdapter) Resolve(identifier string) ([]model.SourceConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	feed, err := a.parser.ParseURLWithContext(identifier, ctx)
 	if err != nil {
-		return model.SourceConfig{}, fmt.Errorf("failed to resolve RSS media feed: %w", err)
+		return nil, fmt.Errorf("failed to resolve RSS media feed: %w", err)
 	}
 
-	return model.SourceConfig{Identifier: identifier, Name: feed.Title, AdapterID: a.id}, nil
+	return []model.SourceConfig{{Identifier: identifier, Name: feed.Title, AdapterID: a.id}}, nil
+}
+
+// Verify re-resolves config.Identifier and reports whether it still comes
+// back to exactly one candidate. RSS feed URLs are already unambiguous, so
+// this mainly guards against the feed having gone away since it was
+// resolved.
+func (a *RSSMediaSourceAdapter) Verify(config model.SourceConfig) error {
+	configs, err := a.Resolve(config.Identifier)
+	if err != nil {
+		return err
+	}
+	if len(configs) != 1 {
+		return fmt.Errorf("identifier does not resolve to exactly one source: %s (%d candidates)", config.Identifier, len(configs))
+	}
+	return nil
 }
 
 func (a *RSSMediaSourceAdapter) Discover(source model.SourceConfig, limit int) (api.DiscoverResult, error) {
@@ -142,8 +157,13 @@ type RSSMediaResolver struct {
 
 func NewRSSMediaResolver() *RSSMediaResolver {
 	return &RSSMediaResolver{
-		id:     "rss-media",
-		client: &http.Client{Timeout: 5 * time.Minute}, // large media files, generous timeout
+		id: "rss-media",
+		// Real full-length video episodes run 1-3GB (design doc's flagged,
+		// unsolved large-file limitation) — 5 minutes was observed timing
+		// out mid-download in practice, not just theoretically. This still
+		// doesn't fix the underlying full-in-memory-buffer approach, just
+		// gives large downloads enough time to actually finish.
+		client: &http.Client{Timeout: 60 * time.Minute},
 	}
 }
 

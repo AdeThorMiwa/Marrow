@@ -26,7 +26,7 @@ func TestResolveUrl(t *testing.T) {
 			t.Fatalf("expected no error, got: %v", err)
 		}
 
-		expected := source
+		expected := []model.SourceConfig{source}
 
 		if !reflect.DeepEqual(result, expected) {
 			t.Errorf("ResolveURL() failed\ngot:  %+v\nwant: %+v", result, expected)

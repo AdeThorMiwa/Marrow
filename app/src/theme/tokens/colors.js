@@ -8,6 +8,7 @@ const light = {
   ink: '#000000', // text, borders, buttons, icons
   inkSecondary: '#666666', // byline, meta, timestamps
   inkTertiary: '#777777', // source-health notices and similar low-emphasis text (AA-Large only — keep to >=18pt/14pt-bold)
+  divider: '#E5E5E5', // hairline separators (tab bar, list rows, card boundaries) — barely-there, not a full-contrast border
 };
 
 const dark = {
@@ -15,6 +16,7 @@ const dark = {
   ink: '#FFFFFF',
   inkSecondary: '#999999',
   inkTertiary: '#888888',
+  divider: '#262626',
 };
 
 module.exports = { light, dark };

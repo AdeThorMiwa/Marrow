@@ -10,6 +10,7 @@ const (
 	BlockText  ContentBlockKind = "text"
 	BlockAudio ContentBlockKind = "audio"
 	BlockVideo ContentBlockKind = "video"
+	BlockImage ContentBlockKind = "image"
 )
 
 // Author represents author identity. Adapters populate it as candidate data
@@ -26,7 +27,7 @@ type Author struct {
 type RawContentBlock struct {
 	Kind         ContentBlockKind
 	Markdown     string // set iff Kind == BlockText
-	MediaRef     string // set iff Kind == BlockAudio | BlockVideo
+	MediaRef     string // set iff Kind == BlockAudio | BlockVideo | BlockImage
 	Caption      string
 	ThumbnailURL string
 }
@@ -66,7 +67,7 @@ type ContentBlock struct {
 	Position     int
 	Kind         ContentBlockKind
 	Markdown     *string // set iff Kind == BlockText
-	MediaRef     *string // set iff Kind == BlockAudio | BlockVideo
+	MediaRef     *string // set iff Kind == BlockAudio | BlockVideo | BlockImage
 	Caption      *string
 	ThumbnailURL *string
 }
