@@ -83,10 +83,12 @@ func TestContentFeedSource_CursorPagination(t *testing.T) {
 	src := testutil.SeedSource(t, pool, "src-1")
 
 	now := time.Now()
-	// publishedAt is deliberately the same (or even reversed) across all
-	// three — proves ordering follows createdAt, not publishedAt.
-	oldest := seedReadyContent(t, a, src.ID, now, now.Add(-2*time.Hour))
-	middle := seedReadyContent(t, a, src.ID, now, now.Add(-1*time.Hour))
+	// CreatedAt is bucketed to the UTC calendar day (see
+	// dbo.ListFeedVisibleContents), so all three landing on "today" tie on
+	// CreatedAt and PublishedAt decides the order instead — deliberately
+	// distinct here so the expected page order is unambiguous.
+	oldest := seedReadyContent(t, a, src.ID, now.Add(-2*time.Hour), now.Add(-2*time.Hour))
+	middle := seedReadyContent(t, a, src.ID, now.Add(-1*time.Hour), now.Add(-1*time.Hour))
 	newest := seedReadyContent(t, a, src.ID, now, now)
 
 	s := &feed.ContentFeedSource{}
@@ -153,6 +155,39 @@ func TestContentFeedSource_PublishedAtBreaksCreatedAtTie(t *testing.T) {
 		if gotOrder[i] != wantOrder[i] {
 			t.Fatalf("expected order [vid2, vid1, vid3], got content IDs %v", gotOrder)
 		}
+	}
+}
+
+// TestContentFeedSource_SameDayCreatedAtTiesDespiteRaceyDifferences
+// reproduces the real bug this was fixed for: concurrent ingest workers
+// assign CreatedAt individually at DB-insert time, so two items from the
+// very same Discover() batch never actually get an identical CreatedAt —
+// they differ by however long the insert race took (here, a few seconds).
+// Without day-truncation that tiny difference alone decides the order and
+// PublishedAt never gets a chance to break the tie. recentlyPublished is
+// inserted first but published_at is a few seconds behind
+// earlierPublished's insert — expected order still puts recentlyPublished
+// first once same-day CreatedAt values are treated as tied and PublishedAt
+// actually gets to decide.
+func TestContentFeedSource_SameDayCreatedAtTiesDespiteRaceyDifferences(t *testing.T) {
+	pool := testutil.ConnectDB(t)
+	a := &app.Context{Pool: pool, Config: &testConfig}
+	src := testutil.SeedSource(t, pool, "src-1")
+
+	now := time.Now()
+	recentlyPublished := seedReadyContent(t, a, src.ID, now, now)
+	earlierPublished := seedReadyContent(t, a, src.ID, now.Add(-time.Hour), now.Add(3*time.Second))
+
+	s := &feed.ContentFeedSource{}
+	items, _, err := s.Produce(context.Background(), a, nil, 10)
+	if err != nil {
+		t.Fatalf("Produce failed: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	if items[0].Payload.(feed.ContentPayload).ContentID != recentlyPublished.ID || items[1].Payload.(feed.ContentPayload).ContentID != earlierPublished.ID {
+		t.Fatalf("expected PublishedAt to decide the order within the same CreatedAt day, got %+v", items)
 	}
 }
 

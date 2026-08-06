@@ -75,7 +75,11 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, curso
 	}
 
 	last := ranked[len(ranked)-1]
-	next := &Cursor{CreatedAt: last.CreatedAt, PublishedAt: last.PublishedAt, ContentID: last.ID}
+	// Truncate to the UTC calendar day to match dbo.ListFeedVisibleContents'
+	// feedCreatedAtBucket ordering — the cursor has to compare against the
+	// same truncated value the query sorts by, not the raw per-row
+	// CreatedAt, or pagination would desync from what's actually on screen.
+	next := &Cursor{CreatedAt: last.CreatedAt.UTC().Truncate(24 * time.Hour), PublishedAt: last.PublishedAt, ContentID: last.ID}
 
 	return items, next, nil
 }

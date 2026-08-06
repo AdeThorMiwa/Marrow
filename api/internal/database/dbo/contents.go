@@ -44,15 +44,33 @@ func GetContentByID(ctx context.Context, db DataSource, id string) (model.Conten
 	return content, nil
 }
 
+// feedCreatedAtBucket truncates CreatedAt to its UTC calendar day for
+// ordering purposes — see ListFeedVisibleContents' doc comment for why.
+// The double "AT TIME ZONE 'UTC'" is the standard idiom for a
+// timezone-deterministic truncation of a timestamptz: the first conversion
+// interprets created_at's instant as UTC wall-clock (timestamptz ->
+// timestamp), date_trunc snaps that wall-clock to its day boundary, and the
+// second conversion reinterprets that naive midnight as a UTC instant
+// (timestamp -> timestamptz) — so the result is directly comparable to
+// another timestamptz value regardless of the session's timezone setting.
+const feedCreatedAtBucket = `date_trunc('day', c.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`
+
 // ListFeedVisibleContents returns Content that has a matching
 // EnrichedContent row (Feed's readiness criterion), strictly older than
 // the cursor, newest first. Two-level ordering: primarily by CreatedAt
-// (when it entered our system via Ingest, full precision — not truncated)
-// rather than PublishedAt, so a backlog of old posts pulled in from a
-// newly-added source surfaces together as "new" instead of scattering
-// across the feed by however old the original posts happen to be; ties on
-// CreatedAt (e.g. several items ingested in the same batch) break by
-// PublishedAt, most recently published first.
+// truncated to its UTC calendar day (when it entered our system via
+// Ingest) rather than PublishedAt, so a backlog of old posts pulled in
+// from a newly-added source surfaces together as "new" instead of
+// scattering across the feed by however old the original posts happen to
+// be. Truncating to the day (not full precision) matters here: items from
+// the same Discover() batch get their own CreatedAt assigned individually,
+// at DB-insert time, by a pool of concurrent ingest workers — so their raw
+// timestamps differ by however long that race took and are never actually
+// equal, which would make the PublishedAt tiebreak below never trigger.
+// Truncating to the day treats everything ingested on the same day as tied
+// on CreatedAt, so PublishedAt (most recently published first) actually
+// decides the order within that day, matching what "what's new to me"
+// should mean for a batch of items discovered together.
 // cursorCreatedAt == nil means "first page" — no cursor filter. Blocks are
 // NOT populated here; feed.ContentFeedSource batches those separately
 // across the whole candidate set (avoids N+1).
@@ -65,7 +83,7 @@ func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorCreatedAt
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
 			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
-			ORDER BY c.created_at DESC, c.published_at DESC, c.id DESC
+			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
 		`, limit)
 	} else {
@@ -73,8 +91,8 @@ func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorCreatedAt
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
 			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
-			  AND (c.created_at, c.published_at, c.id) < ($2, $3, $4)
-			ORDER BY c.created_at DESC, c.published_at DESC, c.id DESC
+			  AND (`+feedCreatedAtBucket+`, c.published_at, c.id) < ($2, $3, $4)
+			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
 		`, limit, *cursorCreatedAt, *cursorPublishedAt, cursorContentID)
 	}
