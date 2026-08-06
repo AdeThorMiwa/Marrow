@@ -1,5 +1,6 @@
 # Go (api/)
 api/tmp/
+api/.env
 api/*.exe
 api/*.exe~
 api/*.dll

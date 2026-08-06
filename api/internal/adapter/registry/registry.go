@@ -21,6 +21,16 @@ var adapters = []any{
 	impl.NewYoutubeCaptionResolver(), // MediaResolver half — same ID, separate Go value (same split as RSS media)
 }
 
+// Register appends a config-dependent adapter (e.g. Twitter, which needs
+// real account credentials that aren't available at package-init time the
+// way the static list above is) to the shared registry. Callers construct
+// the adapter themselves once real config is loaded (see serve.go) and
+// register it here — same lookup/dispatch as every statically-registered
+// adapter above, just added later.
+func Register(a any) {
+	adapters = append(adapters, a)
+}
+
 // SourceAdapter resolves an adapter ID to its SourceAdapter capability.
 // Fails loud (never a silent skip) if the ID is unregistered or the
 // registered adapter doesn't implement SourceAdapter.

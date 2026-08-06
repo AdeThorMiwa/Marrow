@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -14,6 +15,7 @@ type Config struct {
 	Ingest     IngestConfig     `mapstructure:"ingest"`
 	Enrichment EnrichmentConfig `mapstructure:"enrichment"`
 	Feed       FeedConfig       `mapstructure:"feed"`
+	Twitter    TwitterConfig    `mapstructure:"twitter"`
 }
 
 type ServerConfig struct {
@@ -56,7 +58,26 @@ type FeedConfig struct {
 	OverfetchFactor int `mapstructure:"overfetch_factor"`
 }
 
+// TwitterConfig holds the real account credentials the Twitter adapter
+// authenticates as (no public, unauthenticated API exists for this
+// platform — see adapter/impl/twitter.go). Deliberately left empty in
+// base.yaml/every committed config file; set via APP_TWITTER_USERNAME /
+// APP_TWITTER_COOKIES environment variables (or a local, untracked
+// api/.env — see Load's godotenv call) instead, same as any other secret.
+// Cookies is the raw `Cookie:` header string copied from a logged-in
+// browser session (needs at least auth_token and ct0).
+type TwitterConfig struct {
+	Username string `mapstructure:"username"`
+	Cookies  string `mapstructure:"cookies"`
+}
+
 func Load() (*Config, error) {
+	// Best-effort: populates the process environment from a local,
+	// untracked .env file (see api/.env) if one exists — lets secrets like
+	// TwitterConfig's be set without ever touching a committed yaml file.
+	// Silently no-ops when the file doesn't exist (e.g. in production,
+	// where real env vars are set directly).
+	_ = godotenv.Load()
 
 	v := viper.New()
 

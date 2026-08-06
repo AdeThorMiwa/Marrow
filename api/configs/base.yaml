@@ -32,3 +32,10 @@ enrichment:
 feed:
   default_page_size: 20
   overfetch_factor: 5
+
+# Deliberately empty — real credentials go in a local, untracked .env
+# (APP_TWITTER_USERNAME / APP_TWITTER_COOKIES), never in a committed config
+# file. See internal/config.go's TwitterConfig doc comment.
+twitter:
+  username: ""
+  cookies: ""
