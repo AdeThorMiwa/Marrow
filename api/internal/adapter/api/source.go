@@ -15,6 +15,13 @@ type DiscoverResult struct {
 	Items      []model.RawContent
 	NextPollAt time.Time
 	Reachable  bool // false => Discover could not reach the source at all
+	// Reason is the underlying error text behind Reachable=false, when the
+	// adapter has one (e.g. an expired auth cookie for Twitter/Instagram) —
+	// persisted onto Source.FailureReason so a broken source's health card
+	// can say more than just "hasn't updated recently." Empty when there's
+	// nothing more specific than "unreachable," which is the common case
+	// for a plain network/parse failure.
+	Reason string
 }
 
 type SourceAdapter interface {

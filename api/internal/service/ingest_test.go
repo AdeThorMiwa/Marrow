@@ -29,11 +29,12 @@ func TestResolveUrl(t *testing.T) {
 		if len(result) != 1 {
 			t.Fatalf("expected exactly one candidate, got %d", len(result))
 		}
-		// StaleAfter is computed from the live feed's actual posting
-		// cadence (see estimateStaleAfter) — real data, not something to
-		// pin down with an exact expected value.
+		// StaleAfter and LogoURL are both computed from the live feed's
+		// actual data (posting cadence, publication image) — real data,
+		// not something to pin down with an exact expected value.
 		got := result[0]
 		got.StaleAfter = 0
+		got.LogoURL = ""
 		if !reflect.DeepEqual(got, source) {
 			t.Errorf("ResolveURL() failed\ngot:  %+v\nwant: %+v", got, source)
 		}

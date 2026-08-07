@@ -179,7 +179,7 @@ func (a *YouTubeSourceAdapter) Discover(source model.SourceConfig, size int) (ap
 	if err != nil {
 		// Same split as every other adapter: a fetch/parse failure here is
 		// "unreachable," not an adapter error — drives Source health.
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 
 	var contents []model.RawContent

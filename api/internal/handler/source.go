@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"marrow/internal/app"
@@ -71,7 +72,7 @@ func (h *SourceHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, responses)
 }
 
-// List handles GET /sources — lists all Sources.
+// List handles GET /sources — lists all active Sources.
 func (h *SourceHandler) List(c *gin.Context) {
 	sources, err := dbo.ListAllSources(c.Request.Context(), h.App.Pool)
 	if err != nil {
@@ -85,4 +86,21 @@ func (h *SourceHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses)
+}
+
+// Delete handles DELETE /sources/:id — soft-deletes the Source; its Content
+// is deliberately left in place (see ingest.DeleteSource).
+func (h *SourceHandler) Delete(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := ingest.DeleteSource(c.Request.Context(), h.App, id); err != nil {
+		if errors.Is(err, ingest.ErrSourceNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

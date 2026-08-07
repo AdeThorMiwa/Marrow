@@ -43,6 +43,7 @@ func AddSources(ctx context.Context, app *app.Context, configs []model.SourceCon
 			AdapterID:  c.AdapterID,
 			Identifier: c.Identifier,
 			Name:       c.Name,
+			LogoURL:    c.LogoURL,
 			NextPollAt: now,
 			Health:     model.HealthOK,
 			StaleAfter: c.StaleAfter,
@@ -63,4 +64,22 @@ func AddSources(ctx context.Context, app *app.Context, configs []model.SourceCon
 	}
 
 	return sources, nil
+}
+
+// ErrSourceNotFound is returned by DeleteSource when the id doesn't match
+// an active source (never existed, or was already deleted).
+var ErrSourceNotFound = fmt.Errorf("source not found")
+
+// DeleteSource soft-deletes a Source (see model.Source.DeletedAt) — its
+// Content is deliberately left in place, still pointing at this Source's
+// row, so what was already retained survives the source going away.
+func DeleteSource(ctx context.Context, app *app.Context, id string) error {
+	deleted, err := dbo.SoftDeleteSource(ctx, app.Pool, id)
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return ErrSourceNotFound
+	}
+	return nil
 }

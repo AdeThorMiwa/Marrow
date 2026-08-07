@@ -10,14 +10,15 @@ type SourceConfigDTO struct {
 	Identifier string `json:"identifier" binding:"required"`
 	AdapterID  string `json:"adapter_id" binding:"required"`
 	Name       string `json:"name"`
+	LogoURL    string `json:"logo_url,omitempty"`
 }
 
 func FromSourceConfig(c model.SourceConfig) SourceConfigDTO {
-	return SourceConfigDTO{Identifier: c.Identifier, AdapterID: c.AdapterID, Name: c.Name}
+	return SourceConfigDTO{Identifier: c.Identifier, AdapterID: c.AdapterID, Name: c.Name, LogoURL: c.LogoURL}
 }
 
 func (d SourceConfigDTO) ToSourceConfig() model.SourceConfig {
-	return model.SourceConfig{Identifier: d.Identifier, AdapterID: d.AdapterID, Name: d.Name}
+	return model.SourceConfig{Identifier: d.Identifier, AdapterID: d.AdapterID, Name: d.Name, LogoURL: d.LogoURL}
 }
 
 // ResolveSourceRequest is the POST /sources/resolve body — a raw identifier
@@ -41,8 +42,10 @@ type SourceResponse struct {
 	AdapterID           string     `json:"adapter_id"`
 	Identifier          string     `json:"identifier"`
 	Name                string     `json:"name"`
+	LogoURL             string     `json:"logo_url,omitempty"`
 	Health              string     `json:"health"`
 	ConsecutiveFailures int        `json:"consecutive_failures"`
+	FailureReason       *string    `json:"failure_reason,omitempty"`
 	LastFetchedAt       *time.Time `json:"last_fetched_at,omitempty"`
 	NextPollAt          time.Time  `json:"next_poll_at"`
 	CreatedAt           time.Time  `json:"created_at"`
@@ -54,8 +57,10 @@ func FromSource(s model.Source) SourceResponse {
 		AdapterID:           s.AdapterID,
 		Identifier:          s.Identifier,
 		Name:                s.Name,
+		LogoURL:             s.LogoURL,
 		Health:              string(s.Health),
 		ConsecutiveFailures: s.ConsecutiveFailures,
+		FailureReason:       s.FailureReason,
 		LastFetchedAt:       s.LastFetchedAt,
 		NextPollAt:          s.NextPollAt,
 		CreatedAt:           s.CreatedAt,

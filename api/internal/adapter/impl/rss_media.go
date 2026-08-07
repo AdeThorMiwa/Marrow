@@ -57,10 +57,16 @@ func (a *RSSMediaSourceAdapter) Resolve(identifier string) ([]model.SourceConfig
 		return nil, fmt.Errorf("failed to resolve RSS media feed: %w", err)
 	}
 
+	var logoURL string
+	if feed.Image != nil {
+		logoURL = feed.Image.URL
+	}
+
 	return []model.SourceConfig{{
 		Identifier: identifier,
 		Name:       feed.Title,
 		AdapterID:  a.id,
+		LogoURL:    logoURL,
 		StaleAfter: estimateStaleAfter(feed.Items),
 	}}, nil
 }
@@ -91,7 +97,7 @@ func (a *RSSMediaSourceAdapter) Discover(source model.SourceConfig, limit int) (
 		// Same split as Substack: any parse/fetch failure here is
 		// "unreachable," not an adapter error — drives Source health,
 		// doesn't abort the scheduler tick.
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 
 	var contents []model.RawContent

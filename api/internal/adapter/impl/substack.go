@@ -118,10 +118,16 @@ func (a *SubstackSourceAdapter) resolvePublication(root string) ([]model.SourceC
 		return nil, fmt.Errorf("failed to resolve Substack publication: %w", err)
 	}
 
+	var logoURL string
+	if feed.Image != nil {
+		logoURL = feed.Image.URL
+	}
+
 	return []model.SourceConfig{{
 		Identifier: root,
 		Name:       feed.Title,
 		AdapterID:  a.id,
+		LogoURL:    logoURL,
 		StaleAfter: estimateStaleAfter(feed.Items),
 	}}, nil
 }
@@ -202,7 +208,7 @@ func (a *SubstackSourceAdapter) Discover(source model.SourceConfig, size int) (a
 		// source being unreachable rather than an adapter error, so it
 		// drives Source health (design.md §8) instead of aborting the
 		// scheduler tick.
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 
 	var contents []model.RawContent

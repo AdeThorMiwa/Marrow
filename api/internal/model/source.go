@@ -6,6 +6,15 @@ type SourceConfig struct {
 	Identifier string
 	Name       string
 	AdapterID  string
+	// LogoURL is this specific source's own avatar/profile-picture/
+	// publication-logo — e.g. a Twitter account's profile image, an
+	// Instagram profile pic, a Substack publication's icon — when the
+	// adapter can cheaply get one at Resolve time. Always optional; empty
+	// when the adapter has no cheap way to get one (YouTube today) or the
+	// source just doesn't have one. Distinct from any adapter-level
+	// platform icon (Twitter logo, Instagram logo, ...), which the client
+	// derives from AdapterID itself rather than from data.
+	LogoURL string
 	// StaleAfter is how long this specific source can go without a new item
 	// before it's genuinely stale — resolved once per-source (typically the
 	// gap between its two most recent items), not a global constant, since
@@ -34,13 +43,28 @@ type Source struct {
 	AdapterID             string
 	Identifier            string // what Resolve was called with
 	Name                  string
+	LogoURL               string
 	LastFetchedAt         *time.Time
 	NextPollAt            time.Time
 	Health                SourceHealth
 	ConsecutiveFailures   int
 	ConsecutiveEmptyPolls int
 	StaleAfter            time.Duration
-	CreatedAt             time.Time
+	// FailureReason is the underlying error text behind the most recent
+	// unreachable Discover attempt (e.g. an expired auth cookie) — cleared
+	// on any successful poll. Nil when there's nothing more specific to
+	// say than the Health status itself.
+	FailureReason *string
+	CreatedAt     time.Time
+	// DeletedAt marks this Source as soft-deleted — DELETE /sources/:id
+	// sets it rather than removing the row, so Content that traces back to
+	// this Source keeps a valid source_id (and this row's real
+	// name/adapter/identifier) instead of being orphaned or reassigned to
+	// a sentinel row. Nil means active; ListDueSources/ListAllSources
+	// filter deleted-out, GetSourcesByIDs deliberately does not (existing
+	// Content still needs to resolve its Source's Name/AdapterID for
+	// display).
+	DeletedAt *time.Time
 }
 
 func (s Source) ToSourceConfig() SourceConfig {

@@ -16,7 +16,7 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	// a different origin (e.g. localhost:8081 vs 8082) during development.
 	ginApp.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type")
 		c.Next()
 	})
@@ -39,6 +39,7 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	ginApp.POST("/sources/resolve", sourceHandler.Resolve)
 	ginApp.POST("/sources", sourceHandler.Create)
 	ginApp.GET("/sources", sourceHandler.List)
+	ginApp.DELETE("/sources/:id", sourceHandler.Delete)
 
 	assembler := feed.NewAssembler(&feed.ContentFeedSource{}, &feed.SourceHealthFeedSource{})
 	feedHandler := handler.NewFeedHandler(app, assembler)

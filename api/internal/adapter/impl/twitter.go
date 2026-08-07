@@ -157,6 +157,7 @@ func (a *TwitterSourceAdapter) Resolve(identifier string) ([]model.SourceConfig,
 		Identifier: user.Username,
 		Name:       user.Displayname,
 		AdapterID:  a.id,
+		LogoURL:    user.ProfileImageURL,
 		StaleAfter: estimateStaleAfterFromDates(dates),
 	}}, nil
 }
@@ -192,17 +193,20 @@ func (a *TwitterSourceAdapter) Discover(source model.SourceConfig, limit int) (a
 	userOut, err := a.run(ctx, "user_by_login", source.Identifier)
 	if err != nil {
 		// Same split as every other adapter: a fetch/auth failure here is
-		// "unreachable," not an adapter error — drives Source health.
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		// "unreachable," not an adapter error — drives Source health. This
+		// is also where an expired session cookie actually shows up (a
+		// twscrape auth failure), hence carrying Reason through instead of
+		// swallowing it.
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 	var user twscrapeUser
 	if jsonErr := json.Unmarshal(bytes.TrimSpace(userOut), &user); jsonErr != nil || user.IDStr == "" {
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: "twscrape returned no user for this handle"}, nil
 	}
 
 	tweetsOut, err := a.run(ctx, "user_tweets", user.IDStr, "--limit", strconv.Itoa(limit))
 	if err != nil {
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 
 	var contents []model.RawContent
@@ -341,9 +345,10 @@ func parseTwscrapeTime(s string) (time.Time, error) {
 // encoding/json automatically.
 
 type twscrapeUser struct {
-	IDStr       string `json:"id_str"`
-	Username    string `json:"username"`
-	Displayname string `json:"displayname"`
+	IDStr           string `json:"id_str"`
+	Username        string `json:"username"`
+	Displayname     string `json:"displayname"`
+	ProfileImageURL string `json:"profileImageUrl"`
 }
 
 type twscrapeMediaPhoto struct {

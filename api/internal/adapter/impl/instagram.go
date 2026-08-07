@@ -133,6 +133,7 @@ func (a *InstagramSourceAdapter) Resolve(identifier string) ([]model.SourceConfi
 		Identifier: profile.Username,
 		Name:       profile.FullName,
 		AdapterID:  a.id,
+		LogoURL:    profile.ProfilePicURL,
 		StaleAfter: estimateStaleAfterFromDates(dates),
 	}}, nil
 }
@@ -166,8 +167,11 @@ func (a *InstagramSourceAdapter) Discover(source model.SourceConfig, limit int) 
 	out, err := a.run(ctx, "posts", source.Identifier, strconv.Itoa(limit))
 	if err != nil {
 		// Same split as every other adapter: a fetch/auth failure here is
-		// "unreachable," not an adapter error — drives Source health.
-		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false}, nil
+		// "unreachable," not an adapter error — drives Source health. This
+		// is also where an expired session cookie actually shows up (an
+		// instaloader auth failure), hence carrying Reason through instead
+		// of swallowing it.
+		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 
 	var contents []model.RawContent
@@ -256,9 +260,10 @@ func extractInstagramPostDates(out []byte) []time.Time {
 // raw (large, Instagram-internal) node shape.
 
 type instaloaderProfile struct {
-	UserID   int64  `json:"userid"`
-	Username string `json:"username"`
-	FullName string `json:"full_name"`
+	UserID        int64  `json:"userid"`
+	Username      string `json:"username"`
+	FullName      string `json:"full_name"`
+	ProfilePicURL string `json:"profile_pic_url"`
 }
 
 type instaloaderMedia struct {

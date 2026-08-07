@@ -47,4 +47,9 @@ type SourceHealthPayload struct {
 	SourceName    string     `json:"source_name"`
 	HealthStatus  string     `json:"health_status"`
 	LastFetchedAt *time.Time `json:"last_fetched_at,omitempty"`
+	// Reason is Source.FailureReason — the underlying error behind a broken
+	// source (e.g. an expired auth cookie), when there is one. Nil for a
+	// merely stale source, or a broken one with nothing more specific than
+	// "unreachable" to say.
+	Reason *string `json:"reason,omitempty"`
 }

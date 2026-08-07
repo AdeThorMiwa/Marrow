@@ -139,6 +139,7 @@ func (t *IngestDiscoveryTask) applyDiscoverOutcome(ctx context.Context, src *mod
 			src.Health = model.HealthOK
 		}
 		src.NextPollAt = t.fallbackNextPoll(result, err, src.ConsecutiveFailures)
+		src.FailureReason = failureReason(err, result.Reason)
 
 	case len(result.Items) == 0:
 		src.ConsecutiveFailures = 0
@@ -149,12 +150,14 @@ func (t *IngestDiscoveryTask) applyDiscoverOutcome(ctx context.Context, src *mod
 			src.Health = model.HealthOK
 		}
 		src.NextPollAt = time.Now().Add(t.backoff(src.ConsecutiveEmptyPolls, src.StaleAfter))
+		src.FailureReason = nil // reachable — whatever the last failure reason was is stale info now
 
 	default:
 		src.ConsecutiveFailures = 0
 		src.ConsecutiveEmptyPolls = 0
 		src.Health = model.HealthOK
 		src.NextPollAt = result.NextPollAt
+		src.FailureReason = nil
 	}
 
 	now := time.Now()
@@ -181,4 +184,18 @@ func (t *IngestDiscoveryTask) fallbackNextPoll(result api.DiscoverResult, err er
 		return time.Now().Add(t.RetryInterval) // adapter/programming error — no real signal to back off against
 	}
 	return time.Now().Add(t.backoff(consecutiveFailures, t.BrokenBackoffMax))
+}
+
+// failureReason prefers the adapter/programming error (err) when present —
+// that's a harder failure than a plain unreachable-source Reason — falling
+// back to result.Reason, and nil when neither has anything to say.
+func failureReason(err error, reason string) *string {
+	if err != nil {
+		msg := err.Error()
+		return &msg
+	}
+	if reason != "" {
+		return &reason
+	}
+	return nil
 }

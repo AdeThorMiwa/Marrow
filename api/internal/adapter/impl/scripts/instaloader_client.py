@@ -72,6 +72,7 @@ def cmd_resolve(context: "instaloader.InstaloaderContext", username: str):
         "userid": profile.userid,
         "username": profile.username,
         "full_name": profile.full_name,
+        "profile_pic_url": profile.profile_pic_url,
     }))
 
 
