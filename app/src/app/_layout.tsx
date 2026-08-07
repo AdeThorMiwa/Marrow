@@ -7,10 +7,10 @@ import {
   SmoochSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/smooch-sans';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-import AppTabs from '@/components/app-tabs';
 import { ThemeProvider } from '@/theme/theme-provider';
 
 SplashScreen.preventAutoHideAsync();
@@ -31,7 +31,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AppTabs />
+      <Stack screenOptions={{ headerShown: false }} />
     </ThemeProvider>
   );
 }

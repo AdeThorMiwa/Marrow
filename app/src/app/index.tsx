@@ -1,4 +1,6 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,8 +9,14 @@ import { AudioPlayer, Badge, Button, Markdown, SourceLogo, Text, VideoPlayer, Yo
 import { ApiError } from '@/lib/api';
 import { getFeed } from '@/lib/feed';
 import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
-import type { ContentPayload, FeedItem, SourceHealthPayload } from '@/lib/types';
+import { listSources } from '@/lib/source';
+import type { ContentPayload, FeedItem, Source, SourceHealthPayload } from '@/lib/types';
 import { useTheme } from '@/theme/theme-provider';
+
+// Fixed width for each item in the source rail — long names ellipsize
+// rather than growing the container (Pressable) or shifting neighbors.
+const SOURCE_RAIL_ITEM_WIDTH = 64;
+const SOURCE_RAIL_LOGO_SIZE = 56;
 
 // Twitter-style single-column timeline: on a wide viewport, half the
 // viewport, centered, capped at the design system's readable measure
@@ -35,6 +43,22 @@ export default function HomeScreen() {
   const isDesktop = width >= DESKTOP_BREAKPOINT;
   const horizontalInset = isDesktop ? theme.spacing.lg : theme.spacing.md;
   const columnBorderWidth = isDesktop ? theme.hairlineWidth : 0;
+
+  const [sources, setSources] = useState<Source[]>([]);
+  useEffect(() => {
+    let ignore = false;
+    listSources()
+      .then((data) => {
+        if (!ignore) setSources(data);
+      })
+      .catch(() => {
+        // The rail just stays empty (plus the "add source" button) — not
+        // worth a whole-screen error for a secondary element.
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const [items, setItems] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -196,6 +220,9 @@ export default function HomeScreen() {
           </View>
           <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
 
+          <SourceRail sources={sources} horizontalInset={horizontalInset} />
+          <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
+
           {error ? (
             <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.lg, gap: theme.spacing.sm }}>
               <Text variant="body" tone="secondary">
@@ -314,12 +341,12 @@ function ContentRow({
 
   return (
     <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.md, gap: theme.spacing.xs }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
-        <SourceLogo adapterId={payload.source_adapter_id} size={20} />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between',  gap: theme.spacing.xs }}>
         <Text variant="caption" tone="secondary">
           @{payload.source_name}
           {daysAgo ? ` • ${daysAgo}` : ''}
         </Text>
+        <SourceLogo adapterId={payload.source_adapter_id} size={20} />
       </View>
       {payload.title ? <Text variant="itemTitle">{payload.title}</Text> : null}
       <ContentMedia type={type} blocks={payload.blocks} isVisible={isVisible} />
@@ -374,8 +401,70 @@ function SourceHealthRow({ payload, horizontalInset }: { payload: SourceHealthPa
         <Badge variant="solid">{payload.health_status}</Badge>
       </View>
       <Text variant="caption" tone="secondary">
-        Hasn&apos;t updated recently — check this source.
+        {payload.reason ?? "Hasn't updated recently — check this source."}
       </Text>
     </View>
+  );
+}
+
+// Horizontal rail of the user's added sources, just below the header — the
+// first item is always a "+" that opens the add-source screen; the rest
+// are the sources themselves, logo (rounded, per-adapter icon) + name
+// below in a fixed-width column so a long name ellipsizes instead of
+// resizing its neighbors. Tapping a source is a placeholder for now — logs
+// the object so there's something to build against later.
+function SourceRail({ sources, horizontalInset }: { sources: Source[]; horizontalInset: number }) {
+  const theme = useTheme();
+  return (
+    <FlatList
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      data={sources}
+      keyExtractor={(item) => item.id}
+      // Web's FlatList defaults to flexGrow: 1 on its outer scroll
+      // container — inside this screen's column flex layout that means
+      // "grow vertically to fill all remaining space" instead of sizing to
+      // its own (short, horizontal) content. Without this override the
+      // rail eats the whole rest of the screen.
+      style={{ flexGrow: 0 }}
+      contentContainerStyle={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.sm, gap: theme.spacing.md }}
+      ListHeaderComponent={
+        <Pressable
+          onPress={() => router.push('/sources/add')}
+          style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs, }}>
+          <View
+            style={{
+              width: SOURCE_RAIL_LOGO_SIZE,
+              height: SOURCE_RAIL_LOGO_SIZE,
+              borderRadius: SOURCE_RAIL_LOGO_SIZE / 2,
+              borderWidth: theme.borderWidth,
+              borderColor: theme.colors.ink,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.colors.background,
+            }}>
+            <MaterialCommunityIcons name="plus" size={SOURCE_RAIL_LOGO_SIZE * 0.5} color={theme.colors.ink} />
+          </View>
+          <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail">
+            Add
+          </Text>
+        </Pressable>
+      }
+      renderItem={({ item }) => <SourceRailItem source={item} />}
+    />
+  );
+}
+
+function SourceRailItem({ source }: { source: Source }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => console.log(source)}
+      style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
+      <SourceLogo adapterId={source.adapter_id} logoUrl={source.logo_url} name={source.name} size={SOURCE_RAIL_LOGO_SIZE} />
+      <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail" style={{ width: '100%', textAlign: 'center' }}>
+        {source.name}
+      </Text>
+    </Pressable>
   );
 }

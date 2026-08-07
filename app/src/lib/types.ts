@@ -4,6 +4,10 @@ export type SourceConfig = {
   identifier: string;
   adapter_id: string;
   name: string;
+  // This specific source's own avatar/profile-picture/publication-logo —
+  // distinct from the per-adapter platform icon. Optional; falls back to
+  // initials when unset.
+  logo_url?: string;
 };
 
 export type Source = {
@@ -11,8 +15,13 @@ export type Source = {
   adapter_id: string;
   identifier: string;
   name: string;
+  logo_url?: string;
   health: SourceHealth;
   consecutive_failures: number;
+  // Underlying error behind the most recent unreachable poll (e.g. an
+  // expired auth cookie) — unset when there's nothing more specific than
+  // the health status itself.
+  failure_reason?: string;
   last_fetched_at?: string;
   next_poll_at: string;
   created_at: string;
@@ -44,6 +53,7 @@ export type SourceHealthPayload = {
   source_name: string;
   health_status: SourceHealth;
   last_fetched_at?: string;
+  reason?: string;
 };
 
 // FeedItem.type doubles as the dominant block kind for content items — the
