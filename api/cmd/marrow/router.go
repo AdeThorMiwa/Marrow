@@ -45,4 +45,11 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	feedHandler := handler.NewFeedHandler(app, assembler)
 	ginApp.GET("/feed", feedHandler.List)
 
+	contentHandler := handler.NewContentHandler(app)
+	ginApp.GET("/contents/:id", contentHandler.Get)
+	ginApp.GET("/contents/:id/comments", contentHandler.Comments)
+
+	mediaHandler := handler.NewMediaHandler()
+	ginApp.GET("/media/playback-url/*ref", mediaHandler.PlaybackURL)
+
 }

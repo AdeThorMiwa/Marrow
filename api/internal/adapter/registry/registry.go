@@ -44,6 +44,21 @@ func MediaResolver(id string) (api.MediaResolver, error) {
 	return lookup[api.MediaResolver](id)
 }
 
+// PlaybackURLResolver resolves an adapter ID to its PlaybackURLResolver
+// capability, if it has one — most adapters don't (their MediaRef is
+// already a stable, directly-playable URL).
+func PlaybackURLResolver(id string) (api.PlaybackURLResolver, error) {
+	return lookup[api.PlaybackURLResolver](id)
+}
+
+// CommentsProvider resolves an adapter ID to its CommentsProvider
+// capability, if it has one — most adapters don't (see CommentsProvider's
+// doc comment). Callers use the error to mean "this source has no
+// comments," not just "lookup failed."
+func CommentsProvider(id string) (api.CommentsProvider, error) {
+	return lookup[api.CommentsProvider](id)
+}
+
 // SourceAdapters returns every registered adapter that implements
 // SourceAdapter — for callers that need to try each one (e.g. ResolveUrl,
 // which doesn't know an identifier's adapter ID up front) without keeping

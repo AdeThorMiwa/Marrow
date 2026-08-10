@@ -62,7 +62,7 @@ func TestInstagramPostToRawContent_ImageOnly(t *testing.T) {
 	}
 }
 
-func TestInstagramPostToRawContent_Video_UsesRSSMediaResolver(t *testing.T) {
+func TestInstagramPostToRawContent_Video_PointsAtPlaybackURLResolver(t *testing.T) {
 	source := model.SourceConfig{Identifier: "handle", Name: "Handle Name"}
 	post := instaloaderPost{
 		Shortcode: "VID1",
@@ -79,9 +79,9 @@ func TestInstagramPostToRawContent_Video_UsesRSSMediaResolver(t *testing.T) {
 	if len(got.Blocks) != 2 {
 		t.Fatalf("expected exactly 2 blocks (video, text), got %d: %+v", len(got.Blocks), got.Blocks)
 	}
-	wantRef := model.MediaRef{Resolver: "rss-media", Ref: "https://scontent.cdninstagram.com/video.mp4"}.Serialize()
+	wantRef := model.MediaRef{Resolver: "instagram", Ref: "VID1:0"}.Serialize()
 	if got.Blocks[0].Kind != model.BlockVideo || got.Blocks[0].MediaRef != wantRef {
-		t.Errorf("expected video block via rss-media resolver, got %+v", got.Blocks[0])
+		t.Errorf("expected video block pointing at the instagram PlaybackURLResolver, got %+v", got.Blocks[0])
 	}
 	// The video's thumbnail still becomes the cover image, even though it
 	// isn't its own block.
@@ -134,6 +134,58 @@ func TestInstagramPostToRawContent_TextOnly(t *testing.T) {
 	}
 	if len(got.CoverImageUrls) != 0 {
 		t.Errorf("expected no cover image, got %v", got.CoverImageUrls)
+	}
+}
+
+func TestParseInstagramVideoRef(t *testing.T) {
+	shortcode, index, err := parseInstagramVideoRef("Dbn-XJhk0_-:0")
+	if err != nil {
+		t.Fatalf("parseInstagramVideoRef failed: %v", err)
+	}
+	if shortcode != "Dbn-XJhk0_-" || index != 0 {
+		t.Errorf("got shortcode=%q index=%d", shortcode, index)
+	}
+}
+
+func TestParseInstagramVideoRef_CarouselIndex(t *testing.T) {
+	shortcode, index, err := parseInstagramVideoRef("ABC123:2")
+	if err != nil {
+		t.Fatalf("parseInstagramVideoRef failed: %v", err)
+	}
+	if shortcode != "ABC123" || index != 2 {
+		t.Errorf("got shortcode=%q index=%d", shortcode, index)
+	}
+}
+
+func TestParseInstagramVideoRef_Malformed_ReturnsError(t *testing.T) {
+	if _, _, err := parseInstagramVideoRef("no-colon-here"); err == nil {
+		t.Error("expected an error for a ref with no index")
+	}
+}
+
+func TestInstagramPlaybackURLCache_SetThenGet(t *testing.T) {
+	a := &InstagramSourceAdapter{playbackURLCache: map[string]playbackURLCacheEntry{}}
+	a.setCachedPlaybackURL("ABC:0", "https://example.com/video.mp4")
+
+	url, ok := a.cachedPlaybackURL("ABC:0")
+	if !ok || url != "https://example.com/video.mp4" {
+		t.Errorf("expected a cache hit with the set URL, got ok=%v url=%q", ok, url)
+	}
+}
+
+func TestInstagramPlaybackURLCache_MissForUnknownRef(t *testing.T) {
+	a := &InstagramSourceAdapter{playbackURLCache: map[string]playbackURLCacheEntry{}}
+	if _, ok := a.cachedPlaybackURL("never-set"); ok {
+		t.Error("expected a cache miss for a ref that was never set")
+	}
+}
+
+func TestInstagramPlaybackURLCache_ExpiredEntryIsAMiss(t *testing.T) {
+	a := &InstagramSourceAdapter{playbackURLCache: map[string]playbackURLCacheEntry{
+		"ABC:0": {url: "https://example.com/stale.mp4", resolvedAt: time.Now().Add(-playbackURLCacheTTL - time.Minute)},
+	}}
+	if _, ok := a.cachedPlaybackURL("ABC:0"); ok {
+		t.Error("expected an expired cache entry to be treated as a miss")
 	}
 }
 

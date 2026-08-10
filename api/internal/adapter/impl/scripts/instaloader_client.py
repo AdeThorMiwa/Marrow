@@ -16,10 +16,18 @@ pasted-cookie flow, not instaloader's own --login flow (which can hit
 Usage:
   instaloader_client.py resolve <username>
   instaloader_client.py posts <username> <limit>
+  instaloader_client.py post <shortcode>
 
-Output: resolve prints one JSON object; posts prints one JSON object per
-line (newline-delimited), each a minimal projection of a Post — only the
-fields the Go adapter actually reads, not instaloader's full raw node.
+Output: resolve and post each print one JSON object; posts prints one JSON
+object per line (newline-delimited), each a minimal projection of a Post —
+only the fields the Go adapter actually reads, not instaloader's full raw
+node.
+
+`post` re-fetches a single already-known post by shortcode — used to get a
+fresh signed video_url at playback time, since Instagram's CDN URLs expire
+within hours of being issued and the one captured at ingest is long gone
+by the time a user actually watches (confirmed live: a 403 on the expired
+URL). Same media_url shape as `posts`, so the Go side reuses one struct.
 """
 import json
 import os
@@ -92,20 +100,33 @@ def cmd_posts(context: "instaloader.InstaloaderContext", username: str, limit: i
         }))
 
 
+def cmd_post(context: "instaloader.InstaloaderContext", shortcode: str):
+    post = instaloader.Post.from_shortcode(context, shortcode)
+    print(json.dumps({
+        "shortcode": post.shortcode,
+        "url": f"https://www.instagram.com/p/{post.shortcode}/",
+        "date": post.date_utc.isoformat() + "Z",
+        "caption": post.caption or "",
+        "media": post_media(post),
+    }))
+
+
 def main():
     if len(sys.argv) < 3:
-        print("usage: instaloader_client.py {resolve|posts} <username> [limit]", file=sys.stderr)
+        print("usage: instaloader_client.py {resolve|posts|post} <username|shortcode> [limit]", file=sys.stderr)
         sys.exit(2)
 
-    mode, username = sys.argv[1], sys.argv[2]
+    mode, target = sys.argv[1], sys.argv[2]
     context = build_context()
 
     try:
         if mode == "resolve":
-            cmd_resolve(context, username)
+            cmd_resolve(context, target)
         elif mode == "posts":
             limit = int(sys.argv[3]) if len(sys.argv) > 3 else 10
-            cmd_posts(context, username, limit)
+            cmd_posts(context, target, limit)
+        elif mode == "post":
+            cmd_post(context, target)
         else:
             print(f"unknown mode: {mode}", file=sys.stderr)
             sys.exit(2)

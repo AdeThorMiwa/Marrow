@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	lib "marrow/internal"
@@ -37,11 +38,28 @@ const (
 // "poll every N minutes for recent posts" adapter. The script uses
 // instaloader as a library instead and stops iterating after `limit`
 // itself.
+
+// playbackURLCacheTTL bounds how long a re-resolved video URL is reused
+// before the next play triggers a fresh instaloader call — long enough
+// that repeat views of a popular video within a session don't add to
+// Instagram's own rate limiting (already a real, observed problem for this
+// account), short enough to stay well inside the several-hour window a
+// freshly-issued signed URL is actually valid for.
+const playbackURLCacheTTL = 45 * time.Minute
+
+type playbackURLCacheEntry struct {
+	url        string
+	resolvedAt time.Time
+}
+
 type InstagramSourceAdapter struct {
 	id       string
 	name     string
 	username string
 	cookies  string
+
+	playbackURLCacheMu sync.Mutex
+	playbackURLCache   map[string]playbackURLCacheEntry
 }
 
 // NewInstagramAdapter asserts python3 and the instaloader package are
@@ -60,7 +78,10 @@ func NewInstagramAdapter(cfg lib.InstagramConfig) *InstagramSourceAdapter {
 		panic("instagram adapter requires the instaloader Python package (pip install instaloader): " + strings.TrimSpace(string(out)))
 	}
 
-	return &InstagramSourceAdapter{id: "instagram", name: "Instagram", username: cfg.Username, cookies: cfg.Cookies}
+	return &InstagramSourceAdapter{
+		id: "instagram", name: "Instagram", username: cfg.Username, cookies: cfg.Cookies,
+		playbackURLCache: map[string]playbackURLCacheEntry{},
+	}
 }
 
 func (a *InstagramSourceAdapter) Id() string   { return a.id }
@@ -154,10 +175,9 @@ func (a *InstagramSourceAdapter) Verify(config model.SourceConfig) (model.Source
 // Discover fetches the account's most recent posts. Media blocks (one per
 // carousel item, or one for a single image/video post) come before the
 // post's own caption text block, same media-then-text convention every
-// other adapter in this package uses. Video blocks reuse the "rss-media"
-// MediaResolver, same rationale as Twitter's: Instagram hands back a real,
-// direct, downloadable video URL, so there's nothing instagram-specific
-// left to resolve server-side.
+// other adapter in this package uses. Video blocks point at PlaybackURLResolver
+// (via the "instagram" MediaRef resolver), not a raw CDN URL — see
+// instagramPostToRawContent's doc comment for why.
 func (a *InstagramSourceAdapter) Discover(source model.SourceConfig, limit int) (api.DiscoverResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -200,11 +220,16 @@ func instagramPostToRawContent(post instaloaderPost, source model.SourceConfig) 
 
 	var blocks []model.RawContentBlock
 	var coverImage string
-	for _, m := range post.Media {
+	for i, m := range post.Media {
 		if m.IsVideo && m.VideoURL != "" {
+			// Not the raw CDN URL — Instagram's video URLs are short-lived
+			// signed links that expire within hours (confirmed live: a 403
+			// on a URL this old), so the ref instead points back at the
+			// post + which media item, letting PlaybackURLResolver
+			// re-fetch a fresh URL on demand at actual playback time.
 			blocks = append(blocks, model.RawContentBlock{
 				Kind:     model.BlockVideo,
-				MediaRef: model.MediaRef{Resolver: "rss-media", Ref: m.VideoURL}.Serialize(),
+				MediaRef: model.MediaRef{Resolver: "instagram", Ref: fmt.Sprintf("%s:%d", post.Shortcode, i)}.Serialize(),
 			})
 		} else if m.DisplayURL != "" {
 			blocks = append(blocks, model.RawContentBlock{Kind: model.BlockImage, MediaRef: m.DisplayURL})
@@ -229,6 +254,71 @@ func instagramPostToRawContent(post instaloaderPost, source model.SourceConfig) 
 		Authors:        []model.Author{{ID: source.Identifier, Name: source.Name}},
 		Metadata:       map[string]any{},
 	}
+}
+
+// ResolvePlaybackURL implements api.PlaybackURLResolver. ref.Ref is
+// "shortcode:mediaIndex" (see instagramPostToRawContent) — re-fetches the
+// post via the "post" command (a single-post lookup, much lighter than a
+// full profile listing) and picks that media item's current video_url,
+// caching it for playbackURLCacheTTL so repeat plays don't hit Instagram
+// again within that window.
+func (a *InstagramSourceAdapter) ResolvePlaybackURL(ctx context.Context, ref model.MediaRef) (string, error) {
+	if cached, ok := a.cachedPlaybackURL(ref.Ref); ok {
+		return cached, nil
+	}
+
+	shortcode, index, err := parseInstagramVideoRef(ref.Ref)
+	if err != nil {
+		return "", err
+	}
+
+	out, err := a.run(ctx, "post", shortcode)
+	if err != nil {
+		return "", fmt.Errorf("failed to re-resolve playback url for %s: %w", ref.Ref, err)
+	}
+	var post instaloaderPost
+	if err := json.Unmarshal(bytes.TrimSpace(out), &post); err != nil {
+		return "", fmt.Errorf("failed to parse post response for %s: %w", ref.Ref, err)
+	}
+	if index < 0 || index >= len(post.Media) || post.Media[index].VideoURL == "" {
+		return "", fmt.Errorf("no video url at media index %d for post %s", index, shortcode)
+	}
+
+	url := post.Media[index].VideoURL
+	a.setCachedPlaybackURL(ref.Ref, url)
+	return url, nil
+}
+
+// parseInstagramVideoRef splits "shortcode:mediaIndex" — Instagram
+// shortcodes never contain ":", so splitting on the last one is
+// unambiguous.
+func parseInstagramVideoRef(ref string) (shortcode string, index int, err error) {
+	i := strings.LastIndex(ref, ":")
+	if i == -1 {
+		return "", 0, fmt.Errorf("malformed instagram media ref: %q", ref)
+	}
+	shortcode = ref[:i]
+	index, err = strconv.Atoi(ref[i+1:])
+	if err != nil {
+		return "", 0, fmt.Errorf("malformed instagram media ref: %q", ref)
+	}
+	return shortcode, index, nil
+}
+
+func (a *InstagramSourceAdapter) cachedPlaybackURL(ref string) (string, bool) {
+	a.playbackURLCacheMu.Lock()
+	defer a.playbackURLCacheMu.Unlock()
+	entry, ok := a.playbackURLCache[ref]
+	if !ok || time.Since(entry.resolvedAt) > playbackURLCacheTTL {
+		return "", false
+	}
+	return entry.url, true
+}
+
+func (a *InstagramSourceAdapter) setCachedPlaybackURL(ref, url string) {
+	a.playbackURLCacheMu.Lock()
+	defer a.playbackURLCacheMu.Unlock()
+	a.playbackURLCache[ref] = playbackURLCacheEntry{url: url, resolvedAt: time.Now()}
 }
 
 // extractInstagramPostDates parses newline-delimited instaloader_client.py
