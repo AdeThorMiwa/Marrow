@@ -11,12 +11,18 @@ tmp_dir = "tmp"
   cmd = "go build -o ./tmp/main ./cmd/marrow"
   delay = 1000
   entrypoint = ["./tmp/main"]
-  exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "venv"]
   exclude_file = []
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
-  full_bin = ""
+  # Prepends the venv's bin/ so `python3` (shelled out to by the Instagram
+  # and YouTube adapters) resolves to the venv's interpreter — instead of
+  # whatever python3 happens to be first on the ambient shell PATH. Must be
+  # $PWD, not ./venv/bin — Go's os/exec refuses to resolve a *relative*
+  # PATH entry (since Go 1.19, to stop an accidental local override), so a
+  # relative prefix here makes python3 unresolvable at runtime.
+  full_bin = "PATH=\"$PWD/venv/bin:$PATH\" ./tmp/main"
   ignore_dangerous_root_dir = false
   include_dir = []
   include_ext = ["go", "tpl", "tmpl", "html"]

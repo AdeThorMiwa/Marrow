@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.adethormiwa.marrow"
     },
     "android": {
+      "package": "com.adethormiwa.marrow",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
