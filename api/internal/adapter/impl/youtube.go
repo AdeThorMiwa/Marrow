@@ -1,11 +1,16 @@
 package adapter
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -217,6 +222,98 @@ func (a *YouTubeSourceAdapter) Discover(source model.SourceConfig, size int) (ap
 	}
 
 	return api.DiscoverResult{Items: contents, NextPollAt: nextPollAt, Reachable: true}, nil
+}
+
+// FetchComments implements api.CommentsProvider by shelling out to yt-dlp
+// (already required on PATH — see YouTubeCaptionResolver) with
+// --write-comments --skip-download. yt-dlp's own comment_sort/max_comments
+// extractor args give the fixed-cap-per-call shape every other adapter's
+// FetchComments already settled on — no true resumable cursor here either.
+// A reply's "parent" field is already the plain parent comment id (not the
+// reply's own compound "{parent}.{reply}" id), so it maps directly onto
+// Comment.ReplyToID with no string surgery.
+func (a *YouTubeSourceAdapter) FetchComments(ctx context.Context, contentURL string, cursor string, limit int) (model.CommentThread, error) {
+	videoID, err := extractYoutubeVideoID(contentURL)
+	if err != nil {
+		return model.CommentThread{}, err
+	}
+
+	tmpDir, err := os.MkdirTemp("", "marrow-yt-comments-")
+	if err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to create temp dir for comments: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	cmd := exec.CommandContext(ctx, "yt-dlp",
+		"--skip-download", "--write-comments", "--write-info-json",
+		"--extractor-args", fmt.Sprintf("youtube:comment_sort=top;max_comments=%d,,,5", limit),
+		"-o", filepath.Join(tmpDir, "%(id)s"),
+		"https://www.youtube.com/watch?v="+videoID,
+	)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return model.CommentThread{}, fmt.Errorf("yt-dlp failed to fetch comments for %s: %w (%s)", videoID, err, strings.TrimSpace(stderr.String()))
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpDir, videoID+".info.json"))
+	if err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to read yt-dlp comments output for %s: %w", videoID, err)
+	}
+
+	var info struct {
+		Comments []youtubeRawComment `json:"comments"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to parse yt-dlp comments for %s: %w", videoID, err)
+	}
+
+	comments := make([]model.Comment, len(info.Comments))
+	for i, c := range info.Comments {
+		comments[i] = youtubeCommentToComment(c)
+	}
+	return model.CommentThread{Comments: comments}, nil
+}
+
+// extractYoutubeVideoID pulls the "v" query param out of a watch URL —
+// contentURL is always Content.URL, which Discover always sets to the
+// item's watch-page link, never the youtube:// MediaRef form.
+func extractYoutubeVideoID(watchURL string) (string, error) {
+	u, err := url.Parse(watchURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid youtube URL: %s", watchURL)
+	}
+	videoID := u.Query().Get("v")
+	if videoID == "" {
+		return "", fmt.Errorf("could not extract a video id from URL: %s", watchURL)
+	}
+	return videoID, nil
+}
+
+// youtubeRawComment is yt-dlp's own --write-comments JSON shape — field
+// names mirror it exactly, trimmed to what the Go adapter actually reads.
+type youtubeRawComment struct {
+	ID              string `json:"id"`
+	Parent          string `json:"parent"` // "root" for a top-level comment, else the parent's id
+	Author          string `json:"author"`
+	AuthorThumbnail string `json:"author_thumbnail"`
+	Text            string `json:"text"`
+	Timestamp       int64  `json:"timestamp"`
+}
+
+func youtubeCommentToComment(c youtubeRawComment) model.Comment {
+	var replyToID string
+	if c.Parent != "" && c.Parent != "root" {
+		replyToID = c.Parent
+	}
+	return model.Comment{
+		ID:              c.ID,
+		ReplyToID:       replyToID,
+		AuthorName:      c.Author,
+		AuthorAvatarURL: c.AuthorThumbnail,
+		Text:            c.Text,
+		PublishedAt:     time.Unix(c.Timestamp, 0).UTC(),
+	}
 }
 
 // youtubeVideoID prefers the yt:videoId extension (explicit, unambiguous);

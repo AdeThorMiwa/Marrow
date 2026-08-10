@@ -224,6 +224,81 @@ func (a *TwitterSourceAdapter) Discover(source model.SourceConfig, limit int) (a
 	return api.DiscoverResult{Items: contents, NextPollAt: nextPollAt, Reachable: true}, nil
 }
 
+// FetchComments implements CommentsProvider. twscrape's tweet_thread
+// returns the whole conversation as one flat list, each tweet carrying its
+// own parent via InReplyToTweetIDStr — confirmed against a real thread, no
+// tree-building needed. cursor is unused: twscrape's CLI exposes no
+// resumable cursor, only a flat --limit cap, so every call just fetches up
+// to limit tweets from the conversation and NextCursor is always "".
+func (a *TwitterSourceAdapter) FetchComments(ctx context.Context, contentURL string, cursor string, limit int) (model.CommentThread, error) {
+	tweetID, err := extractTweetID(contentURL)
+	if err != nil {
+		return model.CommentThread{}, err
+	}
+
+	out, err := a.run(ctx, "tweet_thread", tweetID, "--limit", strconv.Itoa(limit))
+	if err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to fetch comments for %s: %w", contentURL, err)
+	}
+
+	var comments []model.Comment
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		var tw twscrapeTweet
+		if err := json.Unmarshal([]byte(line), &tw); err != nil {
+			continue // one malformed line never aborts the whole fetch
+		}
+		if tw.IDStr == tweetID {
+			continue // the root tweet is the content itself, not a comment on it
+		}
+		comments = append(comments, tweetToComment(tw, tweetID))
+	}
+
+	return model.CommentThread{Comments: comments}, nil
+}
+
+// extractTweetID pulls the numeric ID out of a tweet URL
+// ("https://x.com/{handle}/status/{id}") — the last path segment.
+func extractTweetID(tweetURL string) (string, error) {
+	u, err := url.Parse(tweetURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid tweet URL: %w", err)
+	}
+	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+	id := segments[len(segments)-1]
+	if id == "" {
+		return "", fmt.Errorf("could not extract a tweet ID from URL: %s", tweetURL)
+	}
+	return id, nil
+}
+
+// tweetToComment maps InReplyToTweetIDStr onto Comment.ReplyToID directly,
+// except a reply to rootTweetID itself — that's the Content the comment
+// section belongs to, not another comment, so it must become "" (top-level)
+// or it'd form its own never-rendered group keyed by an ID that's excluded
+// from the comments list entirely (the root tweet is never itself returned
+// as a Comment — see FetchComments).
+func tweetToComment(tw twscrapeTweet, rootTweetID string) model.Comment {
+	publishedAt := time.Now()
+	if d, err := parseTwscrapeTime(tw.Date); err == nil {
+		publishedAt = d
+	}
+	replyToID := tw.InReplyToTweetIDStr
+	if replyToID == rootTweetID {
+		replyToID = ""
+	}
+	return model.Comment{
+		ID:              tw.IDStr,
+		ReplyToID:       replyToID,
+		AuthorName:      tw.User.Displayname,
+		AuthorAvatarURL: tw.User.ProfileImageURL,
+		Text:            tw.RawContent,
+		PublishedAt:     publishedAt,
+	}
+}
+
 // tweetToRawContent maps one twscrape Tweet into a RawContent — a pure
 // function (no I/O) so the media-block-ordering/mapping logic is directly
 // testable against real captured tweet JSON, independent of shelling out.
@@ -376,10 +451,11 @@ type twscrapeMedia struct {
 }
 
 type twscrapeTweet struct {
-	IDStr      string        `json:"id_str"`
-	URL        string        `json:"url"`
-	Date       string        `json:"date"`
-	User       twscrapeUser  `json:"user"`
-	RawContent string        `json:"rawContent"`
-	Media      twscrapeMedia `json:"media"`
+	IDStr               string        `json:"id_str"`
+	URL                 string        `json:"url"`
+	Date                string        `json:"date"`
+	User                twscrapeUser  `json:"user"`
+	RawContent          string        `json:"rawContent"`
+	Media               twscrapeMedia `json:"media"`
+	InReplyToTweetIDStr string        `json:"inReplyToTweetIdStr"`
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"marrow/internal/adapter/registry"
 	"marrow/internal/app"
 	"marrow/internal/database/dbo"
 	model "marrow/internal/model"
@@ -107,18 +108,24 @@ func dominantType(blocks []model.ContentBlock) string {
 // summaryFor picks ContentPayload.Summary — Content.Description if present,
 // otherwise the first text block's truncated Markdown. Replaces the old
 // per-block "excerpt": one preview string per item, not one per block.
-func summaryFor(description *string, blocks []model.ContentBlock) *string {
+//
+// Also reports whether the summary is actually a truncated excerpt of a
+// longer full text — a Description is never truncated (Content Detail
+// Requirement 3: it's already shown in full, nothing more to reveal from
+// this alone), so that case always reports false regardless of length.
+func summaryFor(description *string, blocks []model.ContentBlock) (summary *string, truncated bool) {
 	if description != nil && strings.TrimSpace(*description) != "" {
 		s := *description
-		return &s
+		return &s, false
 	}
 	for _, b := range blocks {
 		if b.Kind == model.BlockText && b.Markdown != nil {
-			s := truncateExcerpt(markdownToPlainText(*b.Markdown), excerptLimit)
-			return &s
+			plain := markdownToPlainText(*b.Markdown)
+			excerpt := truncateExcerpt(plain, excerptLimit)
+			return &excerpt, len([]rune(plain)) > excerptLimit
 		}
 	}
-	return nil
+	return nil, false
 }
 
 // sourceMetadata is the subset of a Content's Source that ContentPayload
@@ -140,6 +147,10 @@ func toFeedItem(c model.Content, blocks []model.ContentBlock, source sourceMetad
 		title = &c.Title
 	}
 
+	summary, truncated := summaryFor(c.Description, blocks)
+	_, commentsErr := registry.CommentsProvider(source.AdapterID)
+	hasComments := commentsErr == nil
+
 	return FeedItem{
 		AnchorID: c.ID,
 		SourceID: c.SourceID,
@@ -151,7 +162,8 @@ func toFeedItem(c model.Content, blocks []model.ContentBlock, source sourceMetad
 			Title:           title,
 			PublishedAt:     c.PublishedAt,
 			Blocks:          summaries,
-			Summary:         summaryFor(c.Description, blocks),
+			Summary:         summary,
+			Detailable:      truncated || hasComments,
 		},
 	}
 }

@@ -34,6 +34,12 @@ type ContentPayload struct {
 	// item, not one per text block. Content.Description if present,
 	// otherwise the first text block's truncated Markdown.
 	Summary *string `json:"summary,omitempty"`
+	// Detailable is true iff tapping this card leads somewhere real: either
+	// Summary is a truncated excerpt of a longer full text (more to read),
+	// or the Source's adapter supports comments (Content Detail Requirement
+	// 3) — regardless of whether any comments exist yet. Computed
+	// server-side; the client never infers this locally.
+	Detailable bool `json:"detailable"`
 }
 
 type BlockSummary struct {

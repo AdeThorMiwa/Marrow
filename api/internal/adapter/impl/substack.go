@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	api "marrow/internal/adapter/api"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -255,4 +257,142 @@ func (a *SubstackSourceAdapter) Discover(source model.SourceConfig, size int) (a
 	}
 
 	return api.DiscoverResult{Items: contents, NextPollAt: nextPollAt, Reachable: true}, nil
+}
+
+// FetchComments implements api.CommentsProvider. Substack's comments API
+// (api/v1/post/{id}/comments) is fully public — no auth needed, unlike
+// Twitter/Instagram. Same no-real-cursor limitation as those two though:
+// all_comments=true returns the whole nested tree in one call, so
+// FetchComments flattens it and caps at limit; NextCursor is always "".
+func (a *SubstackSourceAdapter) FetchComments(ctx context.Context, contentURL string, cursor string, limit int) (model.CommentThread, error) {
+	root, slug, err := extractSubstackPostSlug(contentURL)
+	if err != nil {
+		return model.CommentThread{}, err
+	}
+
+	postID, err := a.fetchSubstackPostID(ctx, root, slug)
+	if err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to resolve post id for %s: %w", contentURL, err)
+	}
+
+	commentsURL := fmt.Sprintf("%s/api/v1/post/%d/comments?all_comments=true&sort=best_first", root, postID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, commentsURL, nil)
+	if err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to build comments request: %w", err)
+	}
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to fetch comments for %s: %w", contentURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return model.CommentThread{}, fmt.Errorf("failed to fetch comments for %s: status %d", contentURL, resp.StatusCode)
+	}
+
+	var parsed struct {
+		Comments []substackComment `json:"comments"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return model.CommentThread{}, fmt.Errorf("failed to decode comments for %s: %w", contentURL, err)
+	}
+
+	comments := flattenSubstackComments(parsed.Comments, limit)
+	return model.CommentThread{Comments: comments}, nil
+}
+
+// extractSubstackPostSlug splits a post URL into its publication root
+// (scheme+host, the same shape resolvePublication already deals with) and
+// the slug after "/p/" that api/v1/posts/{slug} expects.
+func extractSubstackPostSlug(postURL string) (root string, slug string, err error) {
+	u, err := url.Parse(postURL)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid substack post URL: %s", postURL)
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 2 || parts[0] != "p" || parts[1] == "" {
+		return "", "", fmt.Errorf("could not extract a post slug from URL: %s", postURL)
+	}
+	return fmt.Sprintf("%s://%s", u.Scheme, u.Host), parts[1], nil
+}
+
+// fetchSubstackPostID resolves a post's numeric ID via the same public
+// api/v1/posts/{slug} endpoint Resolve already knows the shape of.
+func (a *SubstackSourceAdapter) fetchSubstackPostID(ctx context.Context, root, slug string) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/v1/posts/%s", root, slug), nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	var parsed struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return 0, err
+	}
+	if parsed.ID == 0 {
+		return 0, fmt.Errorf("post has no id")
+	}
+	return parsed.ID, nil
+}
+
+// substackComment is Substack's own nested comment shape — children is a
+// recursive tree of arbitrary depth, and ancestor_path is a dot-separated
+// list of every ancestor's id ("" for a top-level comment).
+type substackComment struct {
+	ID           int64             `json:"id"`
+	Body         string            `json:"body"`
+	Date         string            `json:"date"`
+	Name         string            `json:"name"`
+	PhotoURL     string            `json:"photo_url"`
+	AncestorPath string            `json:"ancestor_path"`
+	Children     []substackComment `json:"children"`
+}
+
+// flattenSubstackComments walks Substack's nested tree depth-first and
+// stops once limit comments have been collected — same flattening
+// approach as Twitter/Instagram, just with a real tree to walk instead of
+// an already-flat API response.
+func flattenSubstackComments(comments []substackComment, limit int) []model.Comment {
+	var out []model.Comment
+	var walk func([]substackComment)
+	walk = func(nodes []substackComment) {
+		for _, c := range nodes {
+			if len(out) >= limit {
+				return
+			}
+			out = append(out, substackCommentToComment(c))
+			walk(c.Children)
+		}
+	}
+	walk(comments)
+	return out
+}
+
+func substackCommentToComment(c substackComment) model.Comment {
+	var replyToID string
+	if c.AncestorPath != "" {
+		segments := strings.Split(c.AncestorPath, ".")
+		replyToID = segments[len(segments)-1]
+	}
+
+	publishedAt := time.Now()
+	if d, err := time.Parse(time.RFC3339, c.Date); err == nil {
+		publishedAt = d
+	}
+
+	return model.Comment{
+		ID:              strconv.FormatInt(c.ID, 10),
+		ReplyToID:       replyToID,
+		AuthorName:      c.Name,
+		AuthorAvatarURL: c.PhotoURL,
+		Text:            c.Body,
+		PublishedAt:     publishedAt,
+	}
 }

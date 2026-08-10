@@ -51,6 +51,41 @@ func TestYoutubeDescription_MissingExtension_ReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestExtractYoutubeVideoID(t *testing.T) {
+	got, err := extractYoutubeVideoID("https://www.youtube.com/watch?v=xv1SxOeblOg")
+	if err != nil {
+		t.Fatalf("extractYoutubeVideoID failed: %v", err)
+	}
+	if got != "xv1SxOeblOg" {
+		t.Errorf("unexpected video id: %q", got)
+	}
+}
+
+func TestExtractYoutubeVideoID_MissingParam_ReturnsError(t *testing.T) {
+	if _, err := extractYoutubeVideoID("https://www.youtube.com/watch"); err == nil {
+		t.Error("expected an error when the URL has no v param")
+	}
+}
+
+func TestYoutubeCommentToComment_TopLevel_ParentRootBecomesEmptyReplyToID(t *testing.T) {
+	c := youtubeRawComment{ID: "abc", Parent: "root", Author: "@someone", Text: "hi", Timestamp: 1786194000}
+	got := youtubeCommentToComment(c)
+	if got.ReplyToID != "" {
+		t.Errorf("expected empty ReplyToID for a top-level comment, got %q", got.ReplyToID)
+	}
+	if got.AuthorName != "@someone" || got.Text != "hi" {
+		t.Errorf("unexpected Comment: %+v", got)
+	}
+}
+
+func TestYoutubeCommentToComment_Reply_CarriesParentID(t *testing.T) {
+	c := youtubeRawComment{ID: "abc.def", Parent: "abc", Author: "@replier", Text: "a reply"}
+	got := youtubeCommentToComment(c)
+	if got.ReplyToID != "abc" {
+		t.Errorf("expected ReplyToID %q, got %q", "abc", got.ReplyToID)
+	}
+}
+
 func TestResolve_UnreachableChannel_ReturnsError(t *testing.T) {
 	a := NewYoutubeAdapter()
 	_, err := a.Resolve("UCthisdoesnotexistatallxxxx")
@@ -157,5 +192,22 @@ func TestDiscover_RealChannel_ProducesVideoBlocks(t *testing.T) {
 	}
 	if len(item.CoverImageUrls) != 1 || item.CoverImageUrls[0] == "" {
 		t.Errorf("expected a derived thumbnail URL, got %v", item.CoverImageUrls)
+	}
+}
+
+func TestFetchComments_RealVideo_ReturnsComments(t *testing.T) {
+	a := NewYoutubeAdapter()
+
+	thread, err := a.FetchComments(t.Context(), "https://www.youtube.com/watch?v=xv1SxOeblOg", "", 10)
+	if err != nil {
+		t.Fatalf("FetchComments failed: %v", err)
+	}
+	if len(thread.Comments) == 0 {
+		t.Fatal("expected at least one comment from a real, popular video")
+	}
+	for _, c := range thread.Comments {
+		if c.ID == "" || c.AuthorName == "" || c.Text == "" {
+			t.Errorf("unexpected comment with a blank required field: %+v", c)
+		}
 	}
 }

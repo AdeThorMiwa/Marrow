@@ -172,3 +172,85 @@ not valid json
 		t.Fatalf("expected 2 valid dates out of 4 lines, got %d", len(dates))
 	}
 }
+
+func TestExtractTweetID(t *testing.T) {
+	cases := map[string]string{
+		"https://x.com/BBCBreaking/status/2085829059724870047": "2085829059724870047",
+		"https://twitter.com/verge/status/123/":                "123",
+	}
+	for in, want := range cases {
+		got, err := extractTweetID(in)
+		if err != nil {
+			t.Errorf("extractTweetID(%q) failed: %v", in, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("extractTweetID(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestExtractTweetID_InvalidURL_ReturnsError(t *testing.T) {
+	if _, err := extractTweetID("https://x.com/"); err == nil {
+		t.Error("expected an error for a URL with no path segment to extract")
+	}
+}
+
+// realTweetReplyJSON is real output captured from a live `twscrape
+// tweet_thread` call — a genuine reply, carrying its parent's ID via
+// inReplyToTweetIdStr.
+const realTweetReplyJSON = `{"id_str":"2085849327243825215","url":"https://x.com/Fei2411/status/2085849327243825215","date":"2026-08-07 19:44:12+00:00","user":{"id_str":"999","username":"Fei2411","displayname":"Fei","profileImageUrl":"https://pbs.twimg.com/profile_images/fei_normal.jpg"},"rawContent":"@verge We really got this before GTA 6.","inReplyToTweetIdStr":"2085819637397373200"}`
+
+func TestTweetToComment_RealCapturedReply(t *testing.T) {
+	var tw twscrapeTweet
+	if err := json.Unmarshal([]byte(realTweetReplyJSON), &tw); err != nil {
+		t.Fatalf("failed to parse real captured reply JSON: %v", err)
+	}
+
+	got := tweetToComment(tw, "0" /* unrelated root — this reply's parent is a different tweet */)
+
+	if got.ID != "2085849327243825215" {
+		t.Errorf("unexpected ID: %q", got.ID)
+	}
+	if got.ReplyToID != "2085819637397373200" {
+		t.Errorf("expected ReplyToID to carry the parent tweet ID, got %q", got.ReplyToID)
+	}
+	if got.AuthorName != "Fei" {
+		t.Errorf("unexpected AuthorName: %q", got.AuthorName)
+	}
+	if got.Text != "@verge We really got this before GTA 6." {
+		t.Errorf("unexpected Text: %q", got.Text)
+	}
+}
+
+func TestTweetToComment_RootTweet_HasEmptyReplyToID(t *testing.T) {
+	var tw twscrapeTweet
+	rootJSON := `{"id_str":"1","date":"2026-08-06 12:00:00+00:00","user":{"displayname":"Root"},"rawContent":"root post","inReplyToTweetIdStr":null}`
+	if err := json.Unmarshal([]byte(rootJSON), &tw); err != nil {
+		t.Fatalf("failed to parse: %v", err)
+	}
+
+	got := tweetToComment(tw, "999")
+	if got.ReplyToID != "" {
+		t.Errorf("expected empty ReplyToID for a root tweet (JSON null), got %q", got.ReplyToID)
+	}
+}
+
+// TestTweetToComment_DirectReplyToRootTweet_HasEmptyReplyToID is the actual
+// bug this fixes: a direct reply's InReplyToTweetIDStr equals the root
+// tweet's own ID — the root tweet is the Content itself, never returned as
+// a Comment (see FetchComments), so leaving that ID as ReplyToID orphaned
+// every direct reply into a group nothing ever reads (topLevel is
+// byParent[""], not byParent[rootTweetID]).
+func TestTweetToComment_DirectReplyToRootTweet_HasEmptyReplyToID(t *testing.T) {
+	var tw twscrapeTweet
+	replyJSON := `{"id_str":"2","date":"2026-08-06 12:00:00+00:00","user":{"displayname":"Replier"},"rawContent":"a direct reply","inReplyToTweetIdStr":"1"}`
+	if err := json.Unmarshal([]byte(replyJSON), &tw); err != nil {
+		t.Fatalf("failed to parse: %v", err)
+	}
+
+	got := tweetToComment(tw, "1")
+	if got.ReplyToID != "" {
+		t.Errorf("expected empty ReplyToID for a direct reply to the root tweet, got %q", got.ReplyToID)
+	}
+}
