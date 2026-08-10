@@ -46,6 +46,10 @@ export type ContentPayload = {
   published_at: string;
   blocks: BlockSummary[];
   summary?: string;
+  // Server-computed (Content Detail Requirement 3.3) — never inferred
+  // client-side. True iff the summary is a truncated excerpt of a longer
+  // full text, or the source's adapter supports comments.
+  detailable: boolean;
 };
 
 export type SourceHealthPayload = {
@@ -67,4 +71,37 @@ export type FeedItem =
 export type FeedPage = {
   items: FeedItem[];
   next_cursor: string;
+};
+
+export type BlockDetail = {
+  kind: BlockKind;
+  markdown?: string;
+  media_ref?: string;
+  caption?: string;
+};
+
+export type ContentDetail = {
+  content_id: string;
+  source_name: string;
+  source_adapter_id: string;
+  title?: string;
+  description?: string;
+  url: string;
+  published_at: string;
+  blocks: BlockDetail[];
+  has_comments: boolean;
+};
+
+export type Comment = {
+  id: string;
+  reply_to_id?: string;
+  author_name: string;
+  author_avatar_url?: string;
+  text: string;
+  published_at: string;
+};
+
+export type CommentThread = {
+  comments: Comment[];
+  next_cursor?: string;
 };

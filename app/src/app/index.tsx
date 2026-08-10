@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AudioPlayer, Badge, Button, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
+import { ActionSheet, AudioPlayer, Badge, Button, ConfirmDialog, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { getFeed } from '@/lib/feed';
 import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
-import { listSources } from '@/lib/source';
+import { deleteSource, listSources } from '@/lib/source';
 import type { ContentPayload, FeedItem, Source, SourceHealthPayload } from '@/lib/types';
 import { useTheme } from '@/theme/theme-provider';
 
@@ -220,7 +220,11 @@ export default function HomeScreen() {
           </View>
           <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
 
-          <SourceRail sources={sources} horizontalInset={horizontalInset} />
+          <SourceRail
+            sources={sources}
+            horizontalInset={horizontalInset}
+            onDeleted={(id) => setSources((prev) => prev.filter((s) => s.id !== id))}
+          />
           <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
 
           {error ? (
@@ -277,6 +281,18 @@ export default function HomeScreen() {
               onEndReached={onEndReached}
               onViewableItemsChanged={onViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
+              // Cards can mount a real native video/audio player, not just
+              // text — expensive enough that FlatList's default
+              // virtualization window (renders ~21 screens worth of content
+              // around the viewport) is what's actually slow here, not
+              // wasted re-renders (React Compiler already memoizes those at
+              // build time — see app.json's experiments.reactCompiler).
+              // Rendering a much narrower window fixes it at the source.
+              windowSize={5}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={6}
+              maxToRenderPerBatch={4}
+              removeClippedSubviews
               ItemSeparatorComponent={() => (
                 <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
               )}
@@ -339,7 +355,7 @@ function ContentRow({
   const theme = useTheme();
   const daysAgo = daysAgoLabel(payload.published_at);
 
-  return (
+  const content = (
     <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.md, gap: theme.spacing.xs }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between',  gap: theme.spacing.xs }}>
         <Text variant="caption" tone="secondary">
@@ -353,6 +369,13 @@ function ContentRow({
       {payload.summary ? <Markdown size="small">{payload.summary}</Markdown> : null}
     </View>
   );
+
+  // Server-computed (Content Detail Requirement 3.3) — a card with nothing
+  // further to reveal gets no press affordance at all, not just a disabled
+  // one.
+  if (!payload.detailable) return content;
+
+  return <Pressable onPress={() => router.push(`/content/${payload.content_id}`)}>{content}</Pressable>;
 }
 
 // The one media slot per card — video wins over audio wins over the first
@@ -411,55 +434,106 @@ function SourceHealthRow({ payload, horizontalInset }: { payload: SourceHealthPa
 // first item is always a "+" that opens the add-source screen; the rest
 // are the sources themselves, logo (rounded, per-adapter icon) + name
 // below in a fixed-width column so a long name ellipsizes instead of
-// resizing its neighbors. Tapping a source is a placeholder for now — logs
-// the object so there's something to build against later.
-function SourceRail({ sources, horizontalInset }: { sources: Source[]; horizontalInset: number }) {
+// resizing its neighbors. Long-pressing a source opens an action sheet
+// (delete only, for now); confirming removes it via onDeleted.
+function SourceRail({
+  sources,
+  horizontalInset,
+  onDeleted,
+}: {
+  sources: Source[];
+  horizontalInset: number;
+  onDeleted: (id: string) => void;
+}) {
   const theme = useTheme();
+  const [menuSource, setMenuSource] = useState<Source | null>(null);
+  const [confirmSource, setConfirmSource] = useState<Source | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = useCallback(async () => {
+    if (!confirmSource) return;
+    setDeleting(true);
+    try {
+      await deleteSource(confirmSource.id);
+      onDeleted(confirmSource.id);
+      setConfirmSource(null);
+    } catch {
+      // The dialog just stays open with the button re-enabled — the user
+      // can retry, same as every other mutation in this app.
+    } finally {
+      setDeleting(false);
+    }
+  }, [confirmSource, onDeleted]);
+
   return (
-    <FlatList
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      data={sources}
-      keyExtractor={(item) => item.id}
-      // Web's FlatList defaults to flexGrow: 1 on its outer scroll
-      // container — inside this screen's column flex layout that means
-      // "grow vertically to fill all remaining space" instead of sizing to
-      // its own (short, horizontal) content. Without this override the
-      // rail eats the whole rest of the screen.
-      style={{ flexGrow: 0 }}
-      contentContainerStyle={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.sm, gap: theme.spacing.md }}
-      ListHeaderComponent={
-        <Pressable
-          onPress={() => router.push('/sources/add')}
-          style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs, }}>
-          <View
-            style={{
-              width: SOURCE_RAIL_LOGO_SIZE,
-              height: SOURCE_RAIL_LOGO_SIZE,
-              borderRadius: SOURCE_RAIL_LOGO_SIZE / 2,
-              borderWidth: theme.borderWidth,
-              borderColor: theme.colors.ink,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme.colors.background,
-            }}>
-            <MaterialCommunityIcons name="plus" size={SOURCE_RAIL_LOGO_SIZE * 0.5} color={theme.colors.ink} />
-          </View>
-          <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail">
-            Add
-          </Text>
-        </Pressable>
-      }
-      renderItem={({ item }) => <SourceRailItem source={item} />}
-    />
+    <>
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={sources}
+        keyExtractor={(item) => item.id}
+        // Web's FlatList defaults to flexGrow: 1 on its outer scroll
+        // container — inside this screen's column flex layout that means
+        // "grow vertically to fill all remaining space" instead of sizing to
+        // its own (short, horizontal) content. Without this override the
+        // rail eats the whole rest of the screen.
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.sm, gap: theme.spacing.md }}
+        ListHeaderComponent={
+          <Pressable
+            onPress={() => router.push('/sources/add')}
+            style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs, }}>
+            <View
+              style={{
+                width: SOURCE_RAIL_LOGO_SIZE,
+                height: SOURCE_RAIL_LOGO_SIZE,
+                borderRadius: SOURCE_RAIL_LOGO_SIZE / 2,
+                borderWidth: theme.borderWidth,
+                borderColor: theme.colors.ink,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.colors.background,
+              }}>
+              <MaterialCommunityIcons name="plus" size={SOURCE_RAIL_LOGO_SIZE * 0.5} color={theme.colors.ink} />
+            </View>
+            <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail">
+              Add
+            </Text>
+          </Pressable>
+        }
+        renderItem={({ item }) => <SourceRailItem source={item} onLongPress={() => setMenuSource(item)} />}
+      />
+
+      <ActionSheet
+        visible={menuSource !== null}
+        onClose={() => setMenuSource(null)}
+        actions={[
+          {
+            label: 'Delete',
+            destructive: true,
+            onPress: () => setConfirmSource(menuSource),
+          },
+        ]}
+      />
+
+      <ConfirmDialog
+        visible={confirmSource !== null}
+        title={`Delete ${confirmSource?.name ?? 'this source'}?`}
+        message="You'll stop getting new content from this source in your feed. Anything already saved to your feed stays right where it is — this only stops future updates."
+        confirmLabel="Delete"
+        confirmLoading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmSource(null)}
+      />
+    </>
   );
 }
 
-function SourceRailItem({ source }: { source: Source }) {
+function SourceRailItem({ source, onLongPress }: { source: Source; onLongPress: () => void }) {
   const theme = useTheme();
   return (
     <Pressable
-      onPress={() => console.log(source)}
+      onLongPress={onLongPress}
       style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
       <SourceLogo adapterId={source.adapter_id} logoUrl={source.logo_url} name={source.name} size={SOURCE_RAIL_LOGO_SIZE} />
       <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail" style={{ width: '100%', textAlign: 'center' }}>

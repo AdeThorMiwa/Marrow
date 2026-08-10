@@ -7,7 +7,7 @@ const API_PORT = 8081;
 // `10.0.2.2` to the host loopback instead. iOS simulator and web both share
 // the host's network namespace directly. A physical device needs the host's
 // LAN IP, which isn't knowable here — override via EXPO_PUBLIC_API_BASE_URL.
-function resolveBaseUrl(): string {
+export function resolveBaseUrl(): string {
   const override = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (override) return override;
   const host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';

@@ -1,4 +1,13 @@
+import { resolveBaseUrl } from './api';
 import type { BlockSummary } from './types';
+
+// Resolvers whose stored ref isn't a directly-playable URL at all — it has
+// to be re-resolved server-side, right before playback, via
+// /media/playback-url (see api/internal/adapter/api/media.go's
+// PlaybackURLResolver doc comment for why: Instagram's CDN URLs expire
+// within hours, so the one captured at ingest time is often already stale
+// by the time a user watches).
+const PLAYBACK_URL_RESOLVERS = new Set(['instagram']);
 
 // Audio/video blocks store `media_ref` as a self-describing
 // "resolver://actual-url" envelope (see api/internal/model/media_ref.go) —
@@ -11,6 +20,11 @@ export function getPlayableUrl(block: BlockSummary): string | undefined {
 
   const idx = block.media_ref.indexOf('://');
   if (idx === -1) return undefined;
+
+  const resolver = block.media_ref.slice(0, idx);
+  if (PLAYBACK_URL_RESOLVERS.has(resolver)) {
+    return `${resolveBaseUrl()}/media/playback-url/${block.media_ref}`;
+  }
   return block.media_ref.slice(idx + 3);
 }
 

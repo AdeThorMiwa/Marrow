@@ -15,3 +15,7 @@ export async function createSources(sources: SourceConfig[]): Promise<Source[]> 
   const { data } = await client.post<Source[]>('/sources', { sources });
   return data;
 }
+
+export async function deleteSource(id: string): Promise<void> {
+  await client.delete(`/sources/${id}`);
+}
