@@ -1,0 +1,8 @@
+.git
+venv/
+tmp/
+*.wav
+*.db
+.env
+configs/stage.yaml
+configs/prod.yaml

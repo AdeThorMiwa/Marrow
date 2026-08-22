@@ -11,6 +11,13 @@ api/marrow
 api/configs/stage.yaml
 api/configs/prod.yaml
 
+# Operational scripts / session state — machine-specific, never committed
+api/marrow-service.sh
+api/**/*.db
+
+# whisper-server debug dumps (written to whatever its CWD happens to be)
+whisper-server-*.wav
+
 # Expo / React Native (app/)
 app/node_modules/
 app/.expo/

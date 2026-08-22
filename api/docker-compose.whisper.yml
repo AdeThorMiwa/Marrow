@@ -1,0 +1,29 @@
+# Opt-in overlay for the Dockerized whisper fallback — only needed when
+# no native whisper-server binary is available on the host (see
+# scripts/bootstrap.sh, which decides this automatically). Activate with:
+#   docker compose -f docker-compose.yml -f docker-compose.whisper.yml up
+# (add -f docker-compose.override.yml too for dev mode, as usual)
+#
+# CPU-only — no GPU/Metal passthrough in Docker Desktop's Linux VM, so
+# this is noticeably slower than the native binary it's standing in for.
+services:
+  whisper:
+    build:
+      context: ../whisper
+    volumes:
+      # Default is a placeholder so this file still parses (e.g. for
+      # `scripts/stop.sh`, which always includes it) when the fallback
+      # was never activated and WHISPER_MODEL_DIR was never set.
+      - ${WHISPER_MODEL_DIR:-/tmp/marrow-whisper-models-unset}:/models:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8090/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  api:
+    environment:
+      APP_ENRICHMENT_WHISPER_BASE_URL: http://whisper:8090
+    depends_on:
+      whisper:
+        condition: service_healthy

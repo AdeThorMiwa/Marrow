@@ -29,8 +29,11 @@ tmp_dir = "tmp"
   include_file = []
   kill_delay = "0s"
   log = "build-errors.log"
-  poll = false
-  poll_interval = 0
+  # fsnotify misses changes through Docker Desktop's macOS bind-mount
+  # filesystem (VirtioFS/osxfs don't reliably forward inotify events into
+  # the container) — polling works everywhere, native or Docker.
+  poll = true
+  poll_interval = 500
   post_cmd = []
   pre_cmd = []
   rerun = false

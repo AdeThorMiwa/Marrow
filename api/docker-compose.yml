@@ -1,0 +1,79 @@
+name: marrow
+
+# Default stack: api (prod target) + postgres + ollama. Whisper stays on
+# the host by default (Metal-accelerated, faster than any container could
+# be) — see docker-compose.whisper.yml for the containerized fallback,
+# and scripts/bootstrap.sh, which decides which one you actually need.
+services:
+  api:
+    build:
+      context: .
+      target: prod
+    env_file:
+      - .env
+    environment:
+      APP_DATABASE_HOST: postgres
+      APP_DATABASE_PORT: "5432"
+      APP_DATABASE_USER: postgres
+      APP_DATABASE_PASSWORD: postgres
+      APP_DATABASE_NAME: marrow
+      APP_DATABASE_SSL_MODE: disable
+      APP_ENRICHMENT_OLLAMA_BASE_URL: http://ollama:11434
+      # Overridden to http://whisper:8090 by docker-compose.whisper.yml
+      # when the containerized fallback is active.
+      APP_ENRICHMENT_WHISPER_BASE_URL: http://host.docker.internal:8090
+      APP_ENV: production
+    ports:
+      - "8091:8081"
+    extra_hosts:
+      # host.docker.internal is automatic on Docker Desktop (Mac/Windows)
+      # but needs this explicitly on Linux Docker Engine.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - twscrape_data:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/feed || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: marrow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      # `ollama list` fails until the server's actually accepting
+      # requests — more reliable than a bare port check, and the `ollama`
+      # CLI is already on PATH in this image (no curl needed).
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
+  twscrape_data:

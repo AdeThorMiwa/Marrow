@@ -1,0 +1,11 @@
+# Auto-merged by `docker compose up` (standard Compose convention) —
+# switches `api` to the dev target (air-based hot-reload) and bind-mounts
+# the real api/ source so host edits show up inside the container
+# instantly. To run the real prod image instead, exclude this file
+# explicitly: `docker compose -f docker-compose.yml up`.
+services:
+  api:
+    build:
+      target: dev
+    volumes:
+      - .:/app
