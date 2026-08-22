@@ -175,7 +175,7 @@ export default function HomeScreen() {
   const showNewItems = useCallback(() => {
     setItems((prev) => [...newItems, ...prev]);
     setNewItems([]);
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [newItems]);
 
   const onRefresh = useCallback(async () => {
@@ -394,7 +394,16 @@ function ContentMedia({
   if (type === 'video') {
     const block = blocks.find((b) => b.kind === 'video');
     const youtubeVideoId = block ? getYoutubeVideoId(block) : undefined;
-    if (youtubeVideoId) return <YouTubeEmbed videoId={youtubeVideoId} isVisible={isVisible} />;
+    if (youtubeVideoId)
+      return (
+        // No-op Pressable claims the responder for taps on the video so
+        // they don't bubble to the card's outer Pressable (which would
+        // navigate to Content Detail instead of letting YouTube's own
+        // play/pause interaction happen).
+        <Pressable onPress={() => {}}>
+          <YouTubeEmbed videoId={youtubeVideoId} isVisible={isVisible} />
+        </Pressable>
+      );
 
     const uri = block ? getPlayableUrl(block) : undefined;
     if (uri) return <VideoPlayer uri={uri} isVisible={isVisible} />;
