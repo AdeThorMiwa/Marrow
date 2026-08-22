@@ -1,0 +1,1102 @@
+[
+  {
+    "identifier": "raphkoster",
+    "adapter_id": "twitter",
+    "name": "Raph Koster",
+    "logo_url": "https://pbs.twimg.com/profile_images/876221128854749185/ykc0jdB2_normal.jpg"
+  },
+  {
+    "identifier": "UCVzt0Ltq6VNKRqRMrry3OIA",
+    "adapter_id": "youtube",
+    "name": "Extra Credits"
+  },
+  {
+    "identifier": "UCqJ-Xo29CKyLTjn6z2XwYAw",
+    "adapter_id": "youtube",
+    "name": "Game Maker's Toolkit"
+  },
+  {
+    "identifier": "https://emshort.blog/feed/",
+    "adapter_id": "rss-media",
+    "name": "Emily Short's Interactive Storytelling",
+    "logo_url": "https://s2.wp.com/i/webclip.png"
+  },
+  {
+    "identifier": "https://www.designer-notes.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "DESIGNER NOTES",
+    "logo_url": "https://www.designer-notes.com/wp-content/uploads/2019/06/headshot-circle-150x150.jpg"
+  },
+  {
+    "identifier": "https://www.raphkoster.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Raph Koster",
+    "logo_url": "https://i0.wp.com/www.raphkoster.com/wp-content/uploads/2013/12/cropped-biglogo.jpg?fit=32%2C32&ssl=1"
+  },
+  {
+    "identifier": "UCtnSBeKEA0swUnGHQ08SibQ",
+    "adapter_id": "youtube",
+    "name": "Comicbook.com"
+  },
+  {
+    "identifier": "UC7PtItEc1t9TA5xutY1bAGw",
+    "adapter_id": "youtube",
+    "name": "Graphic Policy"
+  },
+  {
+    "identifier": "https://paulgravett.com/site/rss/",
+    "adapter_id": "rss-media",
+    "name": "PAUL GRAVETT: THE BLOG AT THE CROSSROADS"
+  },
+  {
+    "identifier": "https://blog.castac.org/feed/",
+    "adapter_id": "rss-media",
+    "name": "Platypus"
+  },
+  {
+    "identifier": "https://thegeekanthropologist.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "The Geek Anthropologist",
+    "logo_url": "https://secure.gravatar.com/blavatar/9b3a160cb52d98549cd88036ed003cbf59fddc1aaf2abf7e92c319dae869116c?s=96&d=https%3A%2F%2Fs0.wp.com%2Fi%2Fwebclip.png"
+  },
+  {
+    "identifier": "http://feeds.feedburner.com/AHotCupOfJoe",
+    "adapter_id": "rss-media",
+    "name": "Archaeology Review",
+    "logo_url": "https://ahotcupofjoe.net/wp-content/uploads/2016/12/cropped-smith-skull-32x32.jpg"
+  },
+  {
+    "identifier": "https://www.sapiens.org/feed/",
+    "adapter_id": "rss-media",
+    "name": "SAPIENS"
+  },
+  {
+    "identifier": "UCsXVk37bltHxD1rDPwtNM8Q",
+    "adapter_id": "youtube",
+    "name": "Kurzgesagt – In a Nutshell"
+  },
+  {
+    "identifier": "UCUHW94eEFW7hkUMVaZz4eDg",
+    "adapter_id": "youtube",
+    "name": "minutephysics"
+  },
+  {
+    "identifier": "UCHnyfMqiRRG1u-2MsSQLbXA",
+    "adapter_id": "youtube",
+    "name": "Veritasium"
+  },
+  {
+    "identifier": "UC7_gcs09iThXybpVgjHZ_7g",
+    "adapter_id": "youtube",
+    "name": "PBS Space Time"
+  },
+  {
+    "identifier": "UC6107grRI4m0o2-emgoDnAA",
+    "adapter_id": "youtube",
+    "name": "SmarterEveryDay"
+  },
+  {
+    "identifier": "UC7DdEm33SyaTDtWYGO2CwdA",
+    "adapter_id": "youtube",
+    "name": "Physics Girl"
+  },
+  {
+    "identifier": "https://www.dpreview.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "DPReview",
+    "logo_url": "https://www.dpreview.com/wp-content/uploads/2026/07/cropped-DPREVIEW-SOCIAL-F_dce17d.avif?w=32"
+  },
+  {
+    "identifier": "https://fstoppers.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Fstoppers"
+  },
+  {
+    "identifier": "https://petapixel.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "PetaPixel"
+  },
+  {
+    "identifier": "https://www.lensculture.com/feeds/feed.rss",
+    "adapter_id": "rss-media",
+    "name": "LensCulture"
+  },
+  {
+    "identifier": "https://121clicks.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "121clicks.com",
+    "logo_url": "https://121clicks.com/wp-content/uploads/2025/10/cropped-cropped-favicon-32x32.png"
+  },
+  {
+    "identifier": "https://www.thisiscolossal.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Colossal",
+    "logo_url": "https://www.thisiscolossal.com/wp-content/uploads/2024/08/icon-crow-150x150.png"
+  },
+  {
+    "identifier": "https://weandthecolor.com/feed",
+    "adapter_id": "rss-media",
+    "name": "WE AND THE COLOR",
+    "logo_url": "https://weandthecolor.com/wp-content/uploads/2024/11/cropped-WATC-Logo-2000x2000-1-32x32.png"
+  },
+  {
+    "identifier": "https://spoongraphics.co.uk/feed",
+    "adapter_id": "rss-media",
+    "name": "Spoon Graphics"
+  },
+  {
+    "identifier": "UC5Ghe5TBQGYIOANuiNW4hDQ",
+    "adapter_id": "youtube",
+    "name": "Garys Economics"
+  },
+  {
+    "identifier": "UC9a_V7YbGGmWphAzk8_4LFQ",
+    "adapter_id": "youtube",
+    "name": "Market Power"
+  },
+  {
+    "identifier": "UC0p5jTq6Xx_DosDFxVXnWaQ",
+    "adapter_id": "youtube",
+    "name": "The Economist"
+  },
+  {
+    "identifier": "UCZ4AMrDcNrfy3X6nsU8-rPg",
+    "adapter_id": "youtube",
+    "name": "Economics Explained"
+  },
+  {
+    "identifier": "https://freakonomics.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Freakonomics"
+  },
+  {
+    "identifier": "https://conversableeconomist.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Conversable Economist",
+    "logo_url": "https://i0.wp.com/conversableeconomist.com/wp-content/uploads/2021/08/cropped-Screen-Shot-2021-08-23-at-2.13.20-PM.png?fit=32%2C32&ssl=1"
+  },
+  {
+    "identifier": "https://follow.it/mainlymacro/rss",
+    "adapter_id": "rss-media",
+    "name": "Mainlymacro"
+  },
+  {
+    "identifier": "https://econbrowser.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Econbrowser"
+  },
+  {
+    "identifier": "https://gregmankiw.blogspot.com/feeds/posts/default",
+    "adapter_id": "rss-media",
+    "name": "Greg Mankiw's Blog"
+  },
+  {
+    "identifier": "https://paulkrugman.substack.com",
+    "adapter_id": "substack",
+    "name": "Paul Krugman",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!e1Ly!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F7f7295f5-c1bd-4d62-b641-6dfbf34258f8_951x951.png"
+  },
+  {
+    "identifier": "https://overthinkpod.substack.com",
+    "adapter_id": "substack",
+    "name": "Overthink Podcast",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!K-a8!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F98641d75-fa5b-4499-95a1-87e41294af47_1280x1280.png"
+  },
+  {
+    "identifier": "https://publicfeeds.net/f/15207/feed-rss.xml",
+    "adapter_id": "rss-media",
+    "name": "Philosophy Talk",
+    "logo_url": "https://f.prxu.org/15207/images/2590c7d5-183c-42b7-91cc-a660407457ca/Logo_sq_hires_blank-copy-2.jpg"
+  },
+  {
+    "identifier": "https://rss.libsyn.com/shows/604590/destinations/5288840.xml",
+    "adapter_id": "rss-media",
+    "name": "Sean Carroll's Mindscape: Science, Society, Philosophy, Culture, Arts, and Ideas",
+    "logo_url": "https://static.libsyn.com/p/assets/b/0/6/d/b06d098337897af116c3140a3186d450/21d641ef836c48dff270cbede4360d187bdd6c56cb126be7d6f51078db34d4675527fa72e13c86bb573ec42c5d4fc493e18e7d95fec734ec77168fc379baefcf.jpeg"
+  },
+  {
+    "identifier": "https://feed.podbean.com/hopwag/feed.xml",
+    "adapter_id": "rss-media",
+    "name": "History of Philosophy Without Any Gaps",
+    "logo_url": "https://pbcdn1.podbean.com/imglogo/image-logo/697911/HistoryofPhilosophy-1400.jpg"
+  },
+  {
+    "identifier": "https://feed.podbean.com/hopwag2/feed.xml",
+    "adapter_id": "rss-media",
+    "name": "History of Philosophy: India, Africana, China",
+    "logo_url": "https://pbcdn1.podbean.com/imglogo/image-logo/819405/hopwag-logo-china-1500_pnwc7f.png"
+  },
+  {
+    "identifier": "https://donaldrobertson.substack.com",
+    "adapter_id": "substack",
+    "name": "Stoicism: Philosophy as a Way of Life",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!2Zp6!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc9a5a7d4-68bf-4b4e-a665-9afbfc045154_1280x1280.png"
+  },
+  {
+    "identifier": "https://jaredhenderson.substack.com",
+    "adapter_id": "substack",
+    "name": "Commonplace Philosophy",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!_tWD!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2dbd4502-b30f-4dd1-b0a1-6815b1de1207_1280x1280.png"
+  },
+  {
+    "identifier": "https://dailyphilosophy.substack.com",
+    "adapter_id": "substack",
+    "name": "Daily Philosophy",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!nLk_!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F535b2781-a249-400b-b55f-8f0c43597466_522x522.png"
+  },
+  {
+    "identifier": "https://anchor.fm/s/d119261c/podcast/rss",
+    "adapter_id": "rss-media",
+    "name": "The History of Yoruba Land",
+    "logo_url": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_nologo/34980863/cb9f4852154fe86d.jpeg"
+  },
+  {
+    "identifier": "BretDevereaux",
+    "adapter_id": "twitter",
+    "name": "\"Online Rent-a-Sage\" Bret Devereaux",
+    "logo_url": "https://pbs.twimg.com/profile_images/1124017406832148482/k9WuhvFK_normal.jpg"
+  },
+  {
+    "identifier": "https://acoup.blog/feed/",
+    "adapter_id": "rss-media",
+    "name": "A Collection of Unmitigated Pedantry",
+    "logo_url": "https://i0.wp.com/acoup.blog/wp-content/uploads/2019/05/cropped-altar-of-domitius-ahenobarb-1-1.jpg?fit=32%2C32&ssl=1"
+  },
+  {
+    "identifier": "https://feed.podbean.com/historyofafricapodcast/feed.xml",
+    "adapter_id": "rss-media",
+    "name": "History of Africa",
+    "logo_url": "https://pbcdn1.podbean.com/imglogo/image-logo/10456491/f6fd9b4ca4e468e7e11c8350463c894b252ee834d352e0a8d889b97ac83aedef.jpg"
+  },
+  {
+    "identifier": "UCRDDHLvQb8HjE2r7_ZuNtWA",
+    "adapter_id": "youtube",
+    "name": "Signals Music Studio"
+  },
+  {
+    "identifier": "https://feed.songexploder.net/SongExploder",
+    "adapter_id": "rss-media",
+    "name": "Song Exploder",
+    "logo_url": "https://f.prxu.org/song-exploder/images/e1ac7426-23de-4fe6-9b38-c816ec398391/songexploder-logo-2025-with-title.jpg"
+  },
+  {
+    "identifier": "UCcUrvjvO7HBJ2RoQi1GO57g",
+    "adapter_id": "youtube",
+    "name": "Pro Sound Effects"
+  },
+  {
+    "identifier": "UCIL5KQw8cWjL93jMKmk7vmQ",
+    "adapter_id": "youtube",
+    "name": "Film.Music.Media"
+  },
+  {
+    "identifier": "UCgianjBWzgqqTfwOvVWWoyg",
+    "adapter_id": "youtube",
+    "name": "The Sound Design Channel"
+  },
+  {
+    "identifier": "UCeZLO2VgbZHeDcongKzzfOw",
+    "adapter_id": "youtube",
+    "name": "8-bit Music Theory"
+  },
+  {
+    "identifier": "UCnkp4xDOwqqJD7sSM3xdUiQ",
+    "adapter_id": "youtube",
+    "name": "Adam Neely"
+  },
+  {
+    "identifier": "UCJquYOG5EL82sKTfH9aMA9Q",
+    "adapter_id": "youtube",
+    "name": "Rick Beato"
+  },
+  {
+    "identifier": "UCTUtqcDkzw7bisadh6AOx5w",
+    "adapter_id": "youtube",
+    "name": "12tone"
+  },
+  {
+    "identifier": "ScienceNews",
+    "adapter_id": "twitter",
+    "name": "Science News",
+    "logo_url": "https://pbs.twimg.com/profile_images/1877466471686684672/8PJsUiB__normal.jpg"
+  },
+  {
+    "identifier": "PLOSBiology",
+    "adapter_id": "twitter",
+    "name": "PLOS Biology",
+    "logo_url": "https://pbs.twimg.com/profile_images/1868689441369268224/K9vwv92O_normal.png"
+  },
+  {
+    "identifier": "https://cookieandkate.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Cookie and Kate",
+    "logo_url": "https://cookieandkate.com/images/2024/10/cropped-favicon-32x32.png"
+  },
+  {
+    "identifier": "https://nutritionfacts.org/feed/",
+    "adapter_id": "rss-media",
+    "name": "NutritionFacts.org"
+  },
+  {
+    "identifier": "https://nutritionstripped.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Nutrition Stripped"
+  },
+  {
+    "identifier": "vaughanbell",
+    "adapter_id": "twitter",
+    "name": "Vaughan Bell",
+    "logo_url": "https://pbs.twimg.com/profile_images/1275354394507251718/Tk_MnZRM_normal.jpg"
+  },
+  {
+    "identifier": "https://experimentalhistory.substack.com",
+    "adapter_id": "substack",
+    "name": "Experimental History",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!VtWA!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2Fe1a1b3b4-5f35-4876-a0d5-449398201e1f_1171x1171.png"
+  },
+  {
+    "identifier": "PsyBlog",
+    "adapter_id": "twitter",
+    "name": "PsyBlog",
+    "logo_url": "https://pbs.twimg.com/profile_images/783598544154398720/MSNzG2xa_normal.jpg"
+  },
+  {
+    "identifier": "https://mindblog.dericbownds.net/feeds/posts/default",
+    "adapter_id": "rss-media",
+    "name": "Deric's MindBlog",
+    "logo_url": "http://dericbownds.net/uploaded_images/Bownds1.jpg"
+  },
+  {
+    "identifier": "sjblakemore",
+    "adapter_id": "twitter",
+    "name": "Prof Sarah-Jayne Blakemore",
+    "logo_url": "https://pbs.twimg.com/profile_images/1975312230137663488/-UJux3EW_normal.jpg"
+  },
+  {
+    "identifier": "http://feeds.feedburner.com/PsychologyBlog",
+    "adapter_id": "rss-media",
+    "name": "PsyBlog"
+  },
+  {
+    "identifier": "https://www.beautifulminds-newsletter.com",
+    "adapter_id": "substack",
+    "name": "Beautiful Minds Newsletter",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!BQYO!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe47fef05-8e9c-4951-b3c3-4d022a2b68be_960x960.png"
+  },
+  {
+    "identifier": "UC5DH3eN81b0RGJ7Xj3fsjVg",
+    "adapter_id": "youtube",
+    "name": "Button Poetry"
+  },
+  {
+    "identifier": "https://andreagibson.substack.com",
+    "adapter_id": "substack",
+    "name": "Things That Don't Suck",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!lpZn!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F426c92f3-7584-4357-985e-d8733aaece9b_1080x1080.png"
+  },
+  {
+    "identifier": "https://feeds.simplecast.com/EJTc8KVr",
+    "adapter_id": "rss-media",
+    "name": "Poetry Off the Shelf",
+    "logo_url": "https://image.simplecastcdn.com/images/2bcad75b-8d45-437d-a6b5-0b567e18b557/b00d5df0-83ba-47e7-baa8-4f2dfedfbbaf/3000x3000/pots-artwork.jpg?aid=rss_feed"
+  },
+  {
+    "identifier": "https://brianbilston.com/rss",
+    "adapter_id": "rss-media",
+    "name": "Brian Bilston",
+    "logo_url": "https://s0.wp.com/i/webclip.png"
+  },
+  {
+    "identifier": "https://www.shortoftheweek.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Short of the WeekShort of the Week",
+    "logo_url": "https://www.shortoftheweek.com/images/screenshot.jpg"
+  },
+  {
+    "identifier": "UCyNtlmLB73-7gtlBz00XOQQ",
+    "adapter_id": "youtube",
+    "name": "Folding Ideas"
+  },
+  {
+    "identifier": "UC7sDT8jZ76VLV1u__krUutA",
+    "adapter_id": "youtube",
+    "name": "DUST"
+  },
+  {
+    "identifier": "nofilmschool",
+    "adapter_id": "twitter",
+    "name": "No Film School",
+    "logo_url": "https://pbs.twimg.com/profile_images/414179216955949056/C0MZU4LE_normal.png"
+  },
+  {
+    "identifier": "leomatsuda",
+    "adapter_id": "instagram",
+    "name": "Leo matsuda",
+    "logo_url": "https://instagram.fiba2-3.fna.fbcdn.net/v/t51.82787-19/770658590_18617475694042328_6184648611600605011_n.jpg?stp=dst-jpg_s320x320_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby43NTQuYzIifQ&_nc_ht=instagram.fiba2-3.fna.fbcdn.net&_nc_cat=108&_nc_oc=Q6cZ2gEpIkBL3fdUChLIpc9NaQofgWzMmHLRegssgosDlQJ4rnRtZykJnlh1tFiuefFW2tE&_nc_ohc=gaWO2GAHSjEQ7kNvwEAf_61&_nc_gid=SGOodUeVgukPcA62nzgq2A&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQEI26aWKONZ-CeM0PF2f27ITf3ciDSsKf_MnGV3TeAUAA&oe=6A8CAFA7&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "laurajaneyh",
+    "adapter_id": "instagram",
+    "name": "Laura Jayne",
+    "logo_url": "https://instagram.fiba2-3.fna.fbcdn.net/v/t51.82787-19/651147626_18573184660034459_8212094882352120035_n.jpg?stp=dst-jpg_s320x320_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDU3LmMyIn0&_nc_ht=instagram.fiba2-3.fna.fbcdn.net&_nc_cat=111&_nc_oc=Q6cZ2gGbryEuovdxSmzXmWXDVk2MfHSaX-N-bC6cbIk0RhregITGhXA9mk9_MCdA4uphpKw&_nc_ohc=eXMjv_5F6-0Q7kNvwELM6bg&_nc_gid=wI-K8KYr__2XESenswOwhA&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQGj7XIYFlNWb_hUFW_iPHjvmq5J540Sgz2umNE70Eo1mg&oe=6A8CA043&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "marie_paccou",
+    "adapter_id": "instagram",
+    "name": "Marie Paccou",
+    "logo_url": "https://instagram.fiba2-3.fna.fbcdn.net/v/t51.2885-19/350089538_1236293970612598_4817932316766064075_n.jpg?stp=dst-jpg_s320x320_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby44MjguYzIifQ&_nc_ht=instagram.fiba2-3.fna.fbcdn.net&_nc_cat=110&_nc_oc=Q6cZ2gHjpbM9mgNR3VZFkEYfyRbVzxHKBDzaA2hiK6UQtNJ3SkYc_cF6vquA5uiyOQ4L7bY&_nc_ohc=vDYbcfu9E9UQ7kNvwG2OJSE&_nc_gid=JMqM2UwbNxejtkKF3YiVew&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQGo1s_hfCdrW4WG4478JiYphSr8Pf8Mw0cvhURzpOjf8g&oe=6A8C952C&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "pixar",
+    "adapter_id": "instagram",
+    "name": "Pixar",
+    "logo_url": "https://instagram.fiba2-2.fna.fbcdn.net/v/t51.82787-19/671228929_18580192582026754_8891876061107531151_n.jpg?stp=dst-jpg_s320x320_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby45NzYuYzIifQ&_nc_ht=instagram.fiba2-2.fna.fbcdn.net&_nc_cat=1&_nc_oc=Q6cZ2gG-IcqgOO5kVGaNtrVeGXtJg8mRDQUf3pgc8Odf8hZyCBDlug9Br1jX1o0ESHLEpSY&_nc_ohc=iDWKAWD9qK8Q7kNvwE7i66-&_nc_gid=XqlNyWX-wfMQT7YHZ0jzMQ&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQHZrAylJTPY3Va0K9kD4H13FeSILRot5USmt8ne8sqDhA&oe=6A8C970A&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "disneyanimation",
+    "adapter_id": "instagram",
+    "name": "Walt Disney Animation Studios",
+    "logo_url": "https://instagram.fiba2-2.fna.fbcdn.net/v/t51.82787-19/706028295_18590186212000142_2464947904161670441_n.jpg?stp=dst-jpg_s320x320_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby41MDcuYzIifQ&_nc_ht=instagram.fiba2-2.fna.fbcdn.net&_nc_cat=1&_nc_oc=Q6cZ2gEJ-PiQJHclk3SKLaG50_0he04PC0PmlMmB2ABKFu1Z_dkOIy7x1aT-F0x_tMc9Wt0&_nc_ohc=wWcNQITSX1UQ7kNvwHupbl-&_nc_gid=JN4KevA9RMCg5G6Vm3LYiQ&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQEzWeXnskPkdXEr7CNbJDL6VXhxzftFW4Tu9ASRqGQ0Kw&oe=6A8CCC26&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "aaronblaiseart",
+    "adapter_id": "instagram",
+    "name": "Aaron Blaise",
+    "logo_url": "https://instagram.fiba2-1.fna.fbcdn.net/v/t51.2885-19/324069847_158172063637068_6264463746939738135_n.jpg?stp=dst-jpg_s320x320_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby42MTMuYzIifQ&_nc_ht=instagram.fiba2-1.fna.fbcdn.net&_nc_cat=100&_nc_oc=Q6cZ2gHFX6RgflCA_4K8bmFdKjzpIicib7eMxuJv961Tk8eD276Jc9AL0MNLuUXA1O5yiNI&_nc_ohc=dVKV2VVDUbcQ7kNvwG7gVm6&_nc_gid=7sDoIh6jZkZ3vbdyVZYzsA&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQEUI-qBDR-iyhV57kk1r-w5e8_fHVFuf6sXObLAlFmvGw&oe=6A8CCB29&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "AnimationMentor",
+    "adapter_id": "twitter",
+    "name": "AnimationMentor",
+    "logo_url": "https://pbs.twimg.com/profile_images/499226028649099264/yxe2gwAn_normal.jpeg"
+  },
+  {
+    "identifier": "https://ninapaley.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Nina Paley",
+    "logo_url": "https://ninapaley.com/wp-content/uploads/favicon.ico"
+  },
+  {
+    "identifier": "https://kirstenlepore.tumblr.com/rss",
+    "adapter_id": "rss-media",
+    "name": "#KirstenNotKristen"
+  },
+  {
+    "identifier": "johnaugust",
+    "adapter_id": "instagram",
+    "name": "John August",
+    "logo_url": "https://instagram.fiba2-2.fna.fbcdn.net/v/t51.2885-19/11355267_940548995991517_591677871_a.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xNTAuYzIifQ&_nc_ht=instagram.fiba2-2.fna.fbcdn.net&_nc_cat=101&_nc_oc=Q6cZ2gEx_emj2Hn-5zy2Xl_Lr5OFxLQ8jY6QADZMijN1kNUXdWty79zQzsl_tKK02aFnr00&_nc_ohc=ydBNBtuzsXQQ7kNvwHWw0K3&_nc_gid=5zD5mrVXTKzfb8IWzY9Ozg&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_AQEZ01_GuDFHPbSfR3a7NIkLjn9FzxtAOlHHIJ4h1dzvLA&oe=6A8C8DB1&_nc_sid=8b3546"
+  },
+  {
+    "identifier": "ninapaley",
+    "adapter_id": "twitter",
+    "name": "Nina Paley",
+    "logo_url": "https://pbs.twimg.com/profile_images/932066021682298881/7JTd_-J-_normal.jpg"
+  },
+  {
+    "identifier": "floydnorman",
+    "adapter_id": "twitter",
+    "name": "Floyd Norman",
+    "logo_url": "https://pbs.twimg.com/profile_images/711259601472086016/OhHrwFye_normal.jpg"
+  },
+  {
+    "identifier": "UCRTRqkhrehrY9hJJcLVUeRQ",
+    "adapter_id": "youtube",
+    "name": "Toniko Pantoja"
+  },
+  {
+    "identifier": "UC9VayT7q3pQ7tdF-TG4Q0yQ",
+    "adapter_id": "youtube",
+    "name": "CG Cookie – Learn Blender"
+  },
+  {
+    "identifier": "UCbKWv2x9t6u8yZoB3KcPtnw",
+    "adapter_id": "youtube",
+    "name": "Alan Becker"
+  },
+  {
+    "identifier": "UCOWrbryuVEPUMSSgayuLURg",
+    "adapter_id": "youtube",
+    "name": "SouthernShotty"
+  },
+  {
+    "identifier": "UCXxtsisIDLiiL6YZFrORkUg",
+    "adapter_id": "youtube",
+    "name": "Pierrick Picaut"
+  },
+  {
+    "identifier": "UCnHsb9iVJzk5bJX18U9rfeg",
+    "adapter_id": "youtube",
+    "name": "Bloop Animation"
+  },
+  {
+    "identifier": "UCSLLdTBwLMfTKWS56tOiQpw",
+    "adapter_id": "youtube",
+    "name": "Arrimus3D Modeling and Design"
+  },
+  {
+    "identifier": "UCy_lFg2VI_rHAko97JeeXgA",
+    "adapter_id": "youtube",
+    "name": "2D Animation 101"
+  },
+  {
+    "identifier": "UCn1XB-jvmd9fXMzhiA6IR0w",
+    "adapter_id": "youtube",
+    "name": "Domics"
+  },
+  {
+    "identifier": "UC0lLeNdvLrFozQRsQ1TQiAw",
+    "adapter_id": "youtube",
+    "name": "The Art of Aaron Blaise"
+  },
+  {
+    "identifier": "UCvb_GM7ILXwzpIh3khhmLdQ",
+    "adapter_id": "youtube",
+    "name": "Muhammad Danyaro"
+  },
+  {
+    "identifier": "https://www.cartoonbrew.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Cartoon Brew",
+    "logo_url": "https://www.cartoonbrew.com/wp-content/uploads/2018/03/cropped-cropped-favicon-3-150x150.png"
+  },
+  {
+    "identifier": "UCBZUcC_0ktWqj_CJi2w3-QQ",
+    "adapter_id": "youtube",
+    "name": "Howard Wimshurst Animation"
+  },
+  {
+    "identifier": "https://rss.libsyn.com/shows/44610/destinations/143783.xml",
+    "adapter_id": "rss-media",
+    "name": "Scriptnotes Podcast",
+    "logo_url": "https://static.libsyn.com/p/assets/1/3/e/3/13e333701a5fee02/scriptnotes-1400.jpg"
+  },
+  {
+    "identifier": "https://1000wordsofsummer.substack.com",
+    "adapter_id": "substack",
+    "name": "CRAFT TALK",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!OaQG!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F75bba7e1-f0ce-4b05-b008-049f3c69dfe7_1280x1280.png"
+  },
+  {
+    "identifier": "https://alexandrasokoloff.substack.com",
+    "adapter_id": "substack",
+    "name": "Screenwriting Tricks for Authors",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!7Czu!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F8f6e8ebb-5e4d-4a8c-bd10-9884e6d59915_250x250.png"
+  },
+  {
+    "identifier": "jamiattenberg",
+    "adapter_id": "twitter",
+    "name": "jami attenberg",
+    "logo_url": "https://pbs.twimg.com/profile_images/2056479925666783233/DoD6w_Dl_normal.jpg"
+  },
+  {
+    "identifier": "https://rss.libsyn.com/shows/40410/destinations/119505.xml",
+    "adapter_id": "rss-media",
+    "name": "Austin Film Festival's On Story",
+    "logo_url": "https://static.libsyn.com/p/assets/4/4/a/0/44a006ce1fd65f5ed959afa2a1bf1c87/OnStoryLibsyn.png"
+  },
+  {
+    "identifier": "https://johnaugust.com/feed",
+    "adapter_id": "rss-media",
+    "name": "John August",
+    "logo_url": "https://johnaugust.com/wp-content/uploads/2018/12/cropped-ja-logo-32x32.png"
+  },
+  {
+    "identifier": "UCIEz5b9FMNa7Tj8DkcJQWRA",
+    "adapter_id": "youtube",
+    "name": "Draft Zero"
+  },
+  {
+    "identifier": "https://pitchyournovel.substack.com",
+    "adapter_id": "substack",
+    "name": "Pitch Your Novel",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!kxcC!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe9860d02-c6e0-4116-a4da-c32f097dd214_1080x1080.png"
+  },
+  {
+    "identifier": "https://www.adriancourreges.com/atom.xml",
+    "adapter_id": "rss-media",
+    "name": "Adrian Courrèges"
+  },
+  {
+    "identifier": "https://www.jendrikillner.com/tags/weekly/index.xml",
+    "adapter_id": "rss-media",
+    "name": "Weekly on Jendrik Illner - 3D Programmer"
+  },
+  {
+    "identifier": "https://ciechanow.ski/atom.xml",
+    "adapter_id": "rss-media",
+    "name": "Bartosz Ciechanowski"
+  },
+  {
+    "identifier": "https://blog.selfshadow.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Self Shadow"
+  },
+  {
+    "identifier": "https://interplayoflight.wordpress.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Interplay of Light",
+    "logo_url": "https://s0.wp.com/i/buttonw-com.png"
+  },
+  {
+    "identifier": "https://www.jeremyong.com/feed.xml",
+    "adapter_id": "rss-media",
+    "name": "Jeremy's Blog"
+  },
+  {
+    "identifier": "https://samcurry.net/api/feed.rss",
+    "adapter_id": "rss-media",
+    "name": "Blog | Sam Curry"
+  },
+  {
+    "identifier": "ale_sp_brazil",
+    "adapter_id": "twitter",
+    "name": "Alexandre Borges",
+    "logo_url": "https://pbs.twimg.com/profile_images/1926322316746608640/fnHxwpL2_normal.jpg"
+  },
+  {
+    "identifier": "https://exploitreversing.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Exploit Reversing",
+    "logo_url": "https://exploitreversing.com/wp-content/uploads/2021/09/cropped-defcon_china_2019_2.jpg?w=32"
+  },
+  {
+    "identifier": "samwcyo",
+    "adapter_id": "twitter",
+    "name": "Sam Curry",
+    "logo_url": "https://pbs.twimg.com/profile_images/2027061099154071552/gBB_97xm_normal.jpg"
+  },
+  {
+    "identifier": "https://grahamcluley.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "GRAHAM CLULEY",
+    "logo_url": "https://grahamcluley.com/wp-content/uploads/2022/12/cropped-android-chrome-512x512-2-32x32.png"
+  },
+  {
+    "identifier": "k3r3n3",
+    "adapter_id": "twitter",
+    "name": "Keren Elazari",
+    "logo_url": "https://pbs.twimg.com/profile_images/1294240128442019841/dNafs4cu_normal.jpg"
+  },
+  {
+    "identifier": "schneierblog",
+    "adapter_id": "twitter",
+    "name": "Schneier Blog",
+    "logo_url": "https://pbs.twimg.com/profile_images/69337528/bruce-blog_normal.jpg"
+  },
+  {
+    "identifier": "craiu",
+    "adapter_id": "twitter",
+    "name": "Costin Raiu",
+    "logo_url": "https://pbs.twimg.com/profile_images/1944777158297018368/1oHLtNLE_normal.jpg"
+  },
+  {
+    "identifier": "troyhunt",
+    "adapter_id": "twitter",
+    "name": "Troy Hunt",
+    "logo_url": "https://pbs.twimg.com/profile_images/1468800968309411841/C6Y4s792_normal.jpg"
+  },
+  {
+    "identifier": "thegrugq",
+    "adapter_id": "twitter",
+    "name": "thaddeus e. grugq",
+    "logo_url": "https://pbs.twimg.com/profile_images/1461576161255772163/zDyX70Yd_normal.jpg"
+  },
+  {
+    "identifier": "https://projectzero.google/feed.xml",
+    "adapter_id": "rss-media",
+    "name": "Project Zero"
+  },
+  {
+    "identifier": "https://blog.trailofbits.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "The Trail of Bits Blog"
+  },
+  {
+    "identifier": "https://feeds.feedburner.com/TheHackersNews",
+    "adapter_id": "rss-media",
+    "name": "The Hacker News"
+  },
+  {
+    "identifier": "https://pentestlab.blog/feed/",
+    "adapter_id": "rss-media",
+    "name": "Penetration Testing Lab",
+    "logo_url": "https://pentestlab.blog/wp-content/uploads/2024/08/cropped-pentestlab.webp?w=32"
+  },
+  {
+    "identifier": "https://talkoverflow.substack.com",
+    "adapter_id": "substack",
+    "name": "Talk::Overflow",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!fAq7!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb5ae42ac-d6e2-4108-8bc2-fc0949d21af5_1024x1024.png"
+  },
+  {
+    "identifier": "https://danielmiessler.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Daniel Miessler",
+    "logo_url": "https://danielmiessler.com/images/logo.png"
+  },
+  {
+    "identifier": "https://krebsonsecurity.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Krebs on Security"
+  },
+  {
+    "identifier": "https://blog.regehr.org/feed",
+    "adapter_id": "rss-media",
+    "name": "Embedded in Academia"
+  },
+  {
+    "identifier": "danluu",
+    "adapter_id": "twitter",
+    "name": "Dan Luu",
+    "logo_url": "https://pbs.twimg.com/profile_images/1472713753464500227/HJQvY70g_normal.png"
+  },
+  {
+    "identifier": "eklitzke",
+    "adapter_id": "twitter",
+    "name": "Evan Klitzke",
+    "logo_url": "https://pbs.twimg.com/profile_images/972760872106864641/ov7NVGx7_normal.jpg"
+  },
+  {
+    "identifier": "https://olegkutkov.me/feed",
+    "adapter_id": "rss-media",
+    "name": "Oleg Kutkov personal blog",
+    "logo_url": "https://olegkutkov.me/wp-content/uploads/2018/02/cropped-Screenshot-02152018-121038-PM-2-32x32.png"
+  },
+  {
+    "identifier": "b0rk",
+    "adapter_id": "twitter",
+    "name": "🔎Julia Evans🔍",
+    "logo_url": "https://pbs.twimg.com/profile_images/846106819391115264/iZAxk4qr_normal.jpg"
+  },
+  {
+    "identifier": "https://danluu.com/atom.xml",
+    "adapter_id": "rss-media",
+    "name": "Dan Luu"
+  },
+  {
+    "identifier": "https://jvns.ca/atom.xml",
+    "adapter_id": "rss-media",
+    "name": "Julia Evans"
+  },
+  {
+    "identifier": "https://fasterthanli.me/index.xml",
+    "adapter_id": "rss-media",
+    "name": "fasterthanli.me",
+    "logo_url": "https://cdn.fasterthanli.me/content/img/logo-square-2~479a026f7bf1e020.w800.webp"
+  },
+  {
+    "identifier": "https://blog.cloudflare.com/rss/",
+    "adapter_id": "rss-media",
+    "name": "Cloudflare Blog",
+    "logo_url": "https://blog.cloudflare.com/favicon.ico"
+  },
+  {
+    "identifier": "http://www.kroah.com/log/index.rss",
+    "adapter_id": "rss-media",
+    "name": "Linux Kernel Monkey Log"
+  },
+  {
+    "identifier": "https://sebastianraschka.com/rss_feed.xml",
+    "adapter_id": "rss-media",
+    "name": "Sebastian Raschka, PhD"
+  },
+  {
+    "identifier": "https://engineering.fb.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Engineering at Meta"
+  },
+  {
+    "identifier": "https://www.mongodb.com/blog/rss",
+    "adapter_id": "rss-media",
+    "name": "MongoDB | Blog"
+  },
+  {
+    "identifier": "https://simonwillison.net/atom/everything/",
+    "adapter_id": "rss-media",
+    "name": "Simon Willison's Weblog"
+  },
+  {
+    "identifier": "https://developers.googleblog.com/feeds/posts/default",
+    "adapter_id": "rss-media",
+    "name": "Google Developers Blog"
+  },
+  {
+    "identifier": "https://latent.space",
+    "adapter_id": "substack",
+    "name": "Latent.Space",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!DbYa!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F73b0838a-bd14-46a1-801c-b6a2046e5c1e_1130x1130.png"
+  },
+  {
+    "identifier": "karpathy",
+    "adapter_id": "twitter",
+    "name": "Andrej Karpathy",
+    "logo_url": "https://pbs.twimg.com/profile_images/1296667294148382721/9Pr6XrPB_normal.jpg"
+  },
+  {
+    "identifier": "https://www.smashingmagazine.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Articles on Smashing Magazine — For Web Designers And Developers",
+    "logo_url": "https://www.smashingmagazine.com/images/favicon/app-icon-512x512.png"
+  },
+  {
+    "identifier": "https://blog.bytebytego.com",
+    "adapter_id": "substack",
+    "name": "ByteByteGo Newsletter",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!1eXV!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F8a5609ae-1239-4400-9491-6010a15c4d60_504x504.png"
+  },
+  {
+    "identifier": "https://www.joshwcomeau.com/rss.xml",
+    "adapter_id": "rss-media",
+    "name": "Josh Comeau's blog"
+  },
+  {
+    "identifier": "https://stripe.com/blog/feed.rss",
+    "adapter_id": "rss-media",
+    "name": "Stripe Blog"
+  },
+  {
+    "identifier": "https://martinfowler.com/feed.atom",
+    "adapter_id": "rss-media",
+    "name": "Martin Fowler"
+  },
+  {
+    "identifier": "https://newsletter.pragmaticengineer.com",
+    "adapter_id": "substack",
+    "name": "The Pragmatic Engineer",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!eod5!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F27076b05-e3f4-4d05-9621-3da4f7f189cd_300x300.png"
+  },
+  {
+    "identifier": "https://netflixtechblog.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Netflix TechBlog - Medium",
+    "logo_url": "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png"
+  },
+  {
+    "identifier": "https://feeds.arstechnica.com/arstechnica/index",
+    "adapter_id": "rss-media",
+    "name": "Ars Technica - All content",
+    "logo_url": "https://cdn.arstechnica.net/wp-content/uploads/2016/10/cropped-ars-logo-512_480-60x60.png"
+  },
+  {
+    "identifier": "http://ben-evans.com/benedictevans?format=rss",
+    "adapter_id": "rss-media",
+    "name": "Essays - Benedict Evans"
+  },
+  {
+    "identifier": "https://stratechery.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "Stratechery by Ben Thompson",
+    "logo_url": "https://i0.wp.com/stratechery.com/wp-content/uploads/2018/03/cropped-android-chrome-512x512-1.png?fit=32%2C32&ssl=1"
+  },
+  {
+    "identifier": "https://platformer.substack.com",
+    "adapter_id": "substack",
+    "name": "Platformer",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!-DIf!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F3eceaea0-1d7f-4fc7-8973-671eb4430d67_1024x1024.png"
+  },
+  {
+    "identifier": "UCBJycsmduvYEL83R_U4JriQ",
+    "adapter_id": "youtube",
+    "name": "Marques Brownlee"
+  },
+  {
+    "identifier": "https://feeds.simplecast.com/l2i9YnTd",
+    "adapter_id": "rss-media",
+    "name": "Hard Fork",
+    "logo_url": "https://image.simplecastcdn.com/images/4105a47a-42e5-4ccc-887a-832af7989986/23965394-f5e4-4fdb-b150-639f4910353e/3000x3000/nyt-hf-album-art-3000-2.jpg?aid=rss_feed"
+  },
+  {
+    "identifier": "https://notboring.substack.com",
+    "adapter_id": "substack",
+    "name": "Not Boring by Packy McCormick",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!5wlY!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F62784289-29bb-4fdf-9ada-642905c5a28b_400x400.png"
+  },
+  {
+    "identifier": "https://feeds.transistor.fm/acquired",
+    "adapter_id": "rss-media",
+    "name": "Acquired",
+    "logo_url": "https://img.transistorcdn.com/SYy-ia3mZbFnUAhbvsUEVW0EZyOaJlbF1tNaO9_3qEw/rs:fill:0:0:1/w:1400/h:1400/q:60/mb:500000/aHR0cHM6Ly9pbWct/dXBsb2FkLXByb2R1/Y3Rpb24udHJhbnNp/c3Rvci5mbS8zNjQx/ZWZhM2YzZTI3YjA5/MDZhYmE3ZWUzNzU2/ZWYzMy5qcGc.jpg"
+  },
+  {
+    "identifier": "https://www.theverge.com/rss/index.xml",
+    "adapter_id": "rss-media",
+    "name": "The Verge",
+    "logo_url": "https://platform.theverge.com/wp-content/uploads/sites/2/2025/01/verge-rss-large_80b47e.png?w=150&h=150&crop=1"
+  },
+  {
+    "identifier": "https://techcrunch.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "TechCrunch",
+    "logo_url": "https://techcrunch.com/wp-content/uploads/2015/02/cropped-cropped-favicon-gradient.png?w=32"
+  },
+  {
+    "identifier": "UCddiUEpeqJcYeBxX1IVBKvQ",
+    "adapter_id": "youtube",
+    "name": "The Verge"
+  },
+  {
+    "identifier": "Zikoko_Mag",
+    "adapter_id": "twitter",
+    "name": "Zikoko says it’s #TheNairaLifeConference season!!",
+    "logo_url": "https://pbs.twimg.com/profile_images/2088296360692817920/6HiTNK2Q_normal.jpg"
+  },
+  {
+    "identifier": "ZikokoCitizen",
+    "adapter_id": "twitter",
+    "name": "Zikoko Citizen",
+    "logo_url": "https://pbs.twimg.com/profile_images/1566679985968058369/Qlw7JYNC_normal.jpg"
+  },
+  {
+    "identifier": "UCEGExbcLY24dsF-gzaAGPbw",
+    "adapter_id": "youtube",
+    "name": "Zikoko"
+  },
+  {
+    "identifier": "UCEXGDNclvmg6RW0vipJYsTQ",
+    "adapter_id": "youtube",
+    "name": "Channels Television"
+  },
+  {
+    "identifier": "AishaYesufu",
+    "adapter_id": "twitter",
+    "name": "Aisha Yesufu",
+    "logo_url": "https://pbs.twimg.com/profile_images/1964715621024763904/ln8hqpJd_normal.jpg"
+  },
+  {
+    "identifier": "https://techcabal.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "TechCabal",
+    "logo_url": "https://techcabal.com/wp-content/uploads/tc/2018/10/cropped-tcbig-32x32.png"
+  },
+  {
+    "identifier": "UCyEJX-kSj0kOOCS7Qlq2G7g",
+    "adapter_id": "youtube",
+    "name": "Arise News"
+  },
+  {
+    "identifier": "fisayosoyombo",
+    "adapter_id": "twitter",
+    "name": "'Fisayo Soyombo",
+    "logo_url": "https://pbs.twimg.com/profile_images/1996641111431872512/Rp7QeJRY_normal.jpg"
+  },
+  {
+    "identifier": "DavidHundeyin",
+    "adapter_id": "twitter",
+    "name": "David Hundeyin",
+    "logo_url": "https://pbs.twimg.com/profile_images/1879072575474618368/_r826LsW_normal.jpg"
+  },
+  {
+    "identifier": "https://www.premiumtimesng.com/feed",
+    "adapter_id": "rss-media",
+    "name": "Premium Times Nigeria",
+    "logo_url": "https://i0.wp.com/media.premiumtimesng.com/wp-content/files/2020/09/pt-small-logo-icon.png?fit=32%2C32&ssl=1"
+  },
+  {
+    "identifier": "https://www.theafricareport.com/feed/",
+    "adapter_id": "rss-media",
+    "name": "The Africa Report – African politics and business news"
+  },
+  {
+    "identifier": "africasacountry",
+    "adapter_id": "twitter",
+    "name": "Africa Is a Country",
+    "logo_url": "https://pbs.twimg.com/profile_images/1933195112969883648/GU8Yr_d0_normal.jpg"
+  },
+  {
+    "identifier": "https://africafocus.substack.com",
+    "adapter_id": "substack",
+    "name": "AfricaFocus Notes",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!2Llm!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F00edd006-6db2-47af-be72-cdb2623fc06c_256x256.png"
+  },
+  {
+    "identifier": "UC1_E8NeF5QHY2dtdLRBCCLA",
+    "adapter_id": "youtube",
+    "name": "africanews"
+  },
+  {
+    "identifier": "https://www.africanews.com/feed/rss",
+    "adapter_id": "rss-media",
+    "name": "Africanews RSS"
+  },
+  {
+    "identifier": "https://africanarguments.org/feed/",
+    "adapter_id": "rss-media",
+    "name": "African Arguments",
+    "logo_url": "https://africanarguments.org/wp-content/uploads/2017/05/cropped-aa-logo-icon-a-1-32x32.png"
+  },
+  {
+    "identifier": "https://kenopalo.substack.com",
+    "adapter_id": "substack",
+    "name": "An Africanist Perspective",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!CaH3!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F28f2b955-acad-4857-829b-a5abd066c694_1280x1280.png"
+  },
+  {
+    "identifier": "UChGkulntbV_b0FPYSLBXWNg",
+    "adapter_id": "youtube",
+    "name": "What Now? with Trevor Noah"
+  },
+  {
+    "identifier": "ReutersWorld",
+    "adapter_id": "twitter",
+    "name": "Reuters World",
+    "logo_url": "https://pbs.twimg.com/profile_images/1941570273733455872/8Z4dapjt_normal.jpg"
+  },
+  {
+    "identifier": "UCNye-wNBqNL5ZzHSJj3l8Bg",
+    "adapter_id": "youtube",
+    "name": "Al Jazeera English"
+  },
+  {
+    "identifier": "ianbremmer",
+    "adapter_id": "twitter",
+    "name": "ian bremmer",
+    "logo_url": "https://pbs.twimg.com/profile_images/1669005424467628033/Unv6Q_Va_normal.jpg"
+  },
+  {
+    "identifier": "Trevornoah",
+    "adapter_id": "twitter",
+    "name": "Trevor Noah",
+    "logo_url": "https://pbs.twimg.com/profile_images/2062158312268029952/uJ0lVxVu_normal.jpg"
+  },
+  {
+    "identifier": "https://www.aljazeera.com/xml/rss/all.xml",
+    "adapter_id": "rss-media",
+    "name": "Al Jazeera – Breaking News, World News and Video from Al Jazeera",
+    "logo_url": "https://www.aljazeera.com/images/logo_aje.png"
+  },
+  {
+    "identifier": "https://podcasts.files.bbci.co.uk/p02nq0gn.rss",
+    "adapter_id": "rss-media",
+    "name": "Global News Podcast",
+    "logo_url": "http://ichef.bbci.co.uk/images/ic/3000x3000/p0lqf7hf.jpg"
+  },
+  {
+    "identifier": "UC8bTQzxgvKkXDAaWkeuUlkg",
+    "adapter_id": "youtube",
+    "name": "Trevor Noah"
+  },
+  {
+    "identifier": "https://chartbook.substack.com",
+    "adapter_id": "substack",
+    "name": "Chartbook Newsletter",
+    "logo_url": "https://substackcdn.com/image/fetch/$s_!zQ6z!,w_256,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fchartbook.substack.com%2Fimg%2Fsubstack.png"
+  },
+  {
+    "identifier": "https://rss.dw.com/rdf/rss-en-top",
+    "adapter_id": "rss-media",
+    "name": "Deutsche Welle: DW.com - Top Stories",
+    "logo_url": "https://rss.dw.com/images/DW-L-RGB_whitebg.png"
+  },
+  {
+    "identifier": "https://rss.acast.com/theintelligencepodcast",
+    "adapter_id": "rss-media",
+    "name": "The Intelligence from The Economist",
+    "logo_url": "https://assets.pippa.io/shows/62e286a934d4d93d6587424a/1784634926736-00c7d25b-3e89-4367-a4e1-f7a47693dbeb.jpeg"
+  },
+  {
+    "identifier": "UCknLrEdhRCp1aegoMqRaCZg",
+    "adapter_id": "youtube",
+    "name": "DW News"
+  }
+]
