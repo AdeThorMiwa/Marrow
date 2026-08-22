@@ -442,15 +442,17 @@ Feed reads `RabbitholeSimilarity` records but does not own them — they are own
 
 ### Unified FeedItem array ✅
 
-The API returns a single `[]FeedItem`. Real content items, cluster proposals, and source health cards are all `FeedItem`s with different renderer types. The client renders each based on its renderer — it does not distinguish between "real" and "synthetic" at the list level.
+The API returns a single `[]FeedItem`. Real content items, review card groups, cluster proposals, and source health cards are all `FeedItem`s with different renderer types. The client renders each based on its renderer — it does not distinguish between "real" and "synthetic" at the list level.
 
-Assembly produces this unified array in three steps:
+Assembly produces this unified array in five steps:
 
 1. Score and sort real ContentItems as above
-2. Compute positions for synthetic items:
-   - **Source health cards** — inserted at the chronological position where the affected source went silent. The user encounters them naturally while scrolling, not as an alert at the top.
-   - **Cluster proposals** — inserted immediately after the last item in the triggering cluster. The proposal surfaces at the point where the engagement pattern is freshest.
-3. Merge into one ordered `[]FeedItem` and paginate
+2. Group all due review cards into a single `CardGroupRenderer` item
+3. Insert the card group at its position (top if any card is overdue >24h, otherwise at the chronological position of the earliest due card)
+4. Compute positions for remaining synthetic items:
+   - **Source health cards** — inserted after the last visible item from the affected source on the current page
+   - **Cluster proposals** — inserted immediately after the last item in the triggering cluster on the current page; multiple proposals each anchor to their own cluster independently
+5. Merge into one ordered `[]FeedItem` and paginate
 
 **ClusterProposalRenderer**
 
@@ -1081,24 +1083,25 @@ After each review, FSRS recalculates `stability`, `difficulty`, `due_at`, and `f
 
 ### Feed integration ✅
 
-`due_at` is the chronological anchor. A card enters the feed assembly pool when `due_at <= now` and `lifecycle != suppressed`. Feed queries Review for currently due cards during assembly and merges them into the unified `[]FeedItem` array at their `due_at` position — the same assembly step that injects `ClusterProposalRenderer` and `SourceHealthRenderer` items.
+`due_at` is the chronological anchor. A card enters the feed assembly pool when `due_at <= now` and `lifecycle != suppressed`. Feed queries Review for all currently due cards during assembly and groups them into a single `CardGroupRenderer` item — cards are never inserted individually. The group is inserted as one unit in the unified `[]FeedItem` array.
 
 **Renderers:**
 
 ```go
-type QACardRenderer struct {
-    RendererMeta        // type: "qa_card", v: 1
-    CardID  string
-    Content string
-    Answer  string
+type CardGroupRenderer struct {
+    RendererMeta        // type: "card_group", v: 1
+    Cards []CardItem
 }
 
-type RecallPromptRenderer struct {
-    RendererMeta        // type: "recall_prompt", v: 1
+type CardItem struct {
+    Kind    string  // "qa" | "recall"
     CardID  string
     Content string
+    Answer  string  // populated for qa cards; empty for recall
 }
 ```
+
+Individual card renderers (`QACardRenderer`, `RecallPromptRenderer`) are not used in the feed — they are only used if Review surfaces a standalone card review surface outside the feed.
 
 ---
 
