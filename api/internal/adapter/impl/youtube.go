@@ -116,7 +116,9 @@ func (a *YouTubeSourceAdapter) feedURL(channelID string) string {
 // (StaleAfter) — the identifier persisted is the canonical channel ID, not
 // whatever URL form the user pasted in.
 func (a *YouTubeSourceAdapter) resolveChannel(channelID string) ([]model.SourceConfig, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 20s, not the original 5s — see rss_media.go's Resolve for the
+	// real slow-feed timings this was found against.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	feed, err := a.parser.ParseURLWithContext(a.feedURL(channelID), ctx)
@@ -135,7 +137,7 @@ func (a *YouTubeSourceAdapter) resolveChannel(channelID string) ([]model.SourceC
 // scrapeChannelID fetches a /@handle, /c/, or /user/ page and pulls the
 // canonical channel ID out of its embedded page state.
 func (a *YouTubeSourceAdapter) scrapeChannelID(pageURL string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
@@ -175,7 +177,7 @@ func (a *YouTubeSourceAdapter) scrapeChannelID(pageURL string) (string, error) {
 // that ref for Enrichment; the client resolves it into an embed URL for
 // playback (see docs/DESIGN.md).
 func (a *YouTubeSourceAdapter) Discover(source model.SourceConfig, size int) (api.DiscoverResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	nextPollAt := time.Now().Add(youtubePollInterval)

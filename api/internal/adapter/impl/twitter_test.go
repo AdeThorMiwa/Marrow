@@ -26,6 +26,26 @@ func TestNormalizeHandle(t *testing.T) {
 	}
 }
 
+// TestNormalizeHandle_NonTwitterURL_ReturnsEmpty is a regression test for
+// a real bug: any arbitrary URL's last path segment was being treated as
+// a Twitter handle, regardless of host. "https://stripe.com/blog/engineering"
+// normalized to "blog" — a real, unrelated Twitter account — so Resolve
+// succeeded with a wrong match instead of correctly failing to let the
+// next registered adapter (rss-media, for the real Stripe engineering
+// blog) have a turn.
+func TestNormalizeHandle_NonTwitterURL_ReturnsEmpty(t *testing.T) {
+	cases := []string{
+		"https://stripe.com/blog/engineering",
+		"https://example.com/handle",
+		"https://jendrikillner.com",
+	}
+	for _, in := range cases {
+		if got := normalizeHandle(in); got != "" {
+			t.Errorf("normalizeHandle(%q) = %q, want empty (not a twitter.com/x.com URL)", in, got)
+		}
+	}
+}
+
 func TestParseTwscrapeTime(t *testing.T) {
 	got, err := parseTwscrapeTime("2026-08-06 12:34:56+00:00")
 	if err != nil {

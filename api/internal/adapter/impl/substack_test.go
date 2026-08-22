@@ -89,3 +89,32 @@ func TestFlattenSubstackComments_RespectsLimit(t *testing.T) {
 		t.Fatalf("expected exactly 2 comments when capped, got %d", len(got))
 	}
 }
+
+// TestResolve_CustomDomain_RejectsNonSubstackBlog is a real-infra
+// regression test for a bug found live: theafricareport.com and
+// africanarguments.org are plain WordPress sites, not Substack, but both
+// have a /feed endpoint that parses as valid RSS — Resolve's custom-domain
+// fallback was accepting them anyway, mislabeling ordinary RSS sources as
+// "substack". Requiring a real Substack <generator> tag closes it.
+func TestResolve_CustomDomain_RejectsNonSubstackBlog(t *testing.T) {
+	a := NewSubstackAdapter()
+	if _, err := a.Resolve("https://www.theafricareport.com/feed/"); err == nil {
+		t.Error("expected theafricareport.com (a WordPress blog) to be rejected as not-Substack")
+	}
+}
+
+// TestResolve_CustomDomain_AcceptsRealSubstackOnCustomDomain confirms the
+// fix doesn't overcorrect: a real Substack publication mapped to its own
+// domain should still resolve — chartbook.substack.com is a genuine
+// Substack (used here via its real subdomain, the same shape a mapped
+// custom domain's feed would carry: <generator>Substack</generator>).
+func TestResolve_CustomDomain_AcceptsRealSubstackOnCustomDomain(t *testing.T) {
+	a := NewSubstackAdapter()
+	configs, err := a.Resolve("https://chartbook.substack.com")
+	if err != nil {
+		t.Fatalf("expected a real Substack publication to resolve, got error: %v", err)
+	}
+	if len(configs) != 1 || configs[0].AdapterID != "substack" {
+		t.Errorf("unexpected result: %+v", configs)
+	}
+}

@@ -76,7 +76,7 @@ func (a *SubstackSourceAdapter) Resolve(identifier string) ([]model.SourceConfig
 		if len(parts) < 2 || parts[0] != "pub" || parts[1] == "" {
 			return nil, fmt.Errorf("unrecognized open.substack.com link: %s", identifier)
 		}
-		return a.resolvePublication(fmt.Sprintf("https://%s.substack.com", parts[1]))
+		return a.resolvePublication(fmt.Sprintf("https://%s.substack.com", parts[1]), false)
 
 	case "substack.com", "www.substack.com":
 		if strings.HasPrefix(u.Path, "/@") || strings.HasPrefix(u.Path, "/profile/") {
@@ -85,11 +85,18 @@ func (a *SubstackSourceAdapter) Resolve(identifier string) ([]model.SourceConfig
 		return nil, fmt.Errorf("unrecognized substack.com link: %s", identifier)
 
 	default:
-		// Either {pub}.substack.com (post/comment/chat/bare root) or a
-		// custom domain — both cases just need the path stripped back to
-		// the publication root.
+		// Either {pub}.substack.com (post/comment/chat/bare root — the
+		// hostname itself is proof enough) or a genuine custom domain,
+		// which isn't proof of anything: any WordPress/Ghost/etc. blog
+		// with a /feed endpoint would otherwise "resolve" successfully
+		// here too (real bug found live: theafricareport.com and
+		// africanarguments.org, neither of which are Substack, both
+		// parsed as valid RSS at {host}/feed and were silently accepted).
+		// requireGenerator gates resolvePublication's extra check for
+		// exactly this case.
 		root := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-		return a.resolvePublication(root)
+		requireGenerator := !strings.HasSuffix(host, ".substack.com")
+		return a.resolvePublication(root, requireGenerator)
 	}
 }
 
@@ -111,13 +118,26 @@ func (a *SubstackSourceAdapter) Verify(config model.SourceConfig) (model.SourceC
 // real, get its display name, and estimate its natural posting cadence
 // (StaleAfter) — the same check the original v1 Resolve did, now returning
 // a single-element candidate slice.
-func (a *SubstackSourceAdapter) resolvePublication(root string) ([]model.SourceConfig, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//
+// requireGenerator gates an extra check for callers that only have a
+// domain, not a hostname already proven to be *.substack.com: a feed
+// existing at {host}/feed is not proof it's a Substack (any WordPress/Ghost
+// blog with a /feed endpoint parses fine too), so this additionally
+// requires the feed's own <generator> tag to say so — the one field real
+// Substack feeds reliably carry and generic blog software doesn't fake.
+func (a *SubstackSourceAdapter) resolvePublication(root string, requireGenerator bool) ([]model.SourceConfig, error) {
+	// 20s, not the original 5s — same real-world slow-feed problem
+	// found live for rss-media (see its Resolve's comment): some feeds
+	// genuinely take 15-18s to respond.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	feed, err := a.parser.ParseURLWithContext(a.toRssURL(root), ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve Substack publication: %w", err)
+	}
+	if requireGenerator && !strings.Contains(strings.ToLower(feed.Generator), "substack") {
+		return nil, fmt.Errorf("not a Substack publication (feed generator is %q, not Substack): %s", feed.Generator, root)
 	}
 
 	var logoURL string
@@ -153,7 +173,7 @@ var nonPubSubdomains = map[string]bool{"www": true, "open": true, "api": true, "
 // publication links, validating each via resolvePublication. A profile can
 // legitimately produce zero, one, or many candidates.
 func (a *SubstackSourceAdapter) resolveProfileCandidates(profileURL string) ([]model.SourceConfig, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profileURL, nil)
@@ -187,7 +207,7 @@ func (a *SubstackSourceAdapter) resolveProfileCandidates(profileURL string) ([]m
 			}
 			seen[sub] = true
 
-			if cfgs, err := a.resolvePublication(fmt.Sprintf("https://%s.substack.com", sub)); err == nil {
+			if cfgs, err := a.resolvePublication(fmt.Sprintf("https://%s.substack.com", sub), false); err == nil {
 				candidates = append(candidates, cfgs...)
 			}
 		}
@@ -197,7 +217,7 @@ func (a *SubstackSourceAdapter) resolveProfileCandidates(profileURL string) ([]m
 }
 
 func (a *SubstackSourceAdapter) Discover(source model.SourceConfig, size int) (api.DiscoverResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	rssURL := a.toRssURL(source.Identifier)

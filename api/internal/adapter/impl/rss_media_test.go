@@ -57,6 +57,29 @@ func TestClassify_NoEnclosure_Skipped(t *testing.T) {
 	}
 }
 
+// TestClassify_PlainHTTPEnclosure_RoutesThroughProxy is a regression test
+// for a real bug: BBC Global News Podcast's enclosure is plain http://
+// with no https alternative anywhere in its redirect chain (confirmed
+// live), which iOS/Android block for a mobile client by default —
+// playback silently does nothing. It must be tagged "proxy", not
+// "rss-media", so the client routes it through the server-side streaming
+// proxy instead of trying to play the http:// URL directly.
+func TestClassify_PlainHTTPEnclosure_RoutesThroughProxy(t *testing.T) {
+	a := NewRSSMediaAdapter()
+	item := &gofeed.Item{
+		Enclosures: []*gofeed.Enclosure{{URL: "http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-nondrm-download-rss-low/proto/http/vpid/p0p4j0f6.mp3", Type: "audio/mpeg"}},
+	}
+
+	block, ok := a.classify(item)
+	if !ok {
+		t.Fatal("expected classify to succeed for a plain-http audio enclosure")
+	}
+	want := model.MediaRef{Resolver: "proxy", Ref: item.Enclosures[0].URL}.Serialize()
+	if block.MediaRef != want {
+		t.Errorf("expected MediaRef %q, got %q", want, block.MediaRef)
+	}
+}
+
 func TestClassify_UnsupportedEnclosureType_Skipped(t *testing.T) {
 	a := NewRSSMediaAdapter()
 	item := &gofeed.Item{

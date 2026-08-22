@@ -107,10 +107,27 @@ func (a *TwitterSourceAdapter) run(ctx context.Context, args ...string) ([]byte,
 // included) and reduces it to a bare handle — the only thing a permalink's
 // path and a profile URL's path have in common is that the handle is
 // always the first segment.
+// twitterHosts are the only hostnames whose path segment normalizeHandle
+// will ever treat as a handle. Without this check, any arbitrary URL
+// (e.g. a blog's "https://example.com/blog/engineering") gets its last
+// path segment extracted and handed to twscrape as if it were a Twitter
+// handle — real bug found live: "https://stripe.com/blog/engineering"
+// normalized to "blog", which happened to be a real (totally unrelated)
+// Twitter account, so Resolve succeeded with a wrong match instead of
+// erroring — and ResolveUrl's registry scan accepts the first adapter
+// that doesn't error, so the wrong match won silently.
+var twitterHosts = map[string]bool{
+	"twitter.com": true, "www.twitter.com": true, "mobile.twitter.com": true,
+	"x.com": true, "www.x.com": true, "mobile.x.com": true,
+}
+
 func normalizeHandle(identifier string) string {
 	identifier = strings.TrimSpace(identifier)
 
 	if u, err := url.Parse(identifier); err == nil && u.Host != "" {
+		if !twitterHosts[strings.ToLower(u.Host)] {
+			return ""
+		}
 		identifier = strings.Trim(u.Path, "/")
 	}
 	identifier = strings.TrimPrefix(identifier, "@")
@@ -135,10 +152,16 @@ func (a *TwitterSourceAdapter) Resolve(identifier string) ([]model.SourceConfig,
 		return nil, fmt.Errorf("could not extract a handle from identifier: %s", identifier)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	// Two sequential twscrape calls below, each individually taking
+	// 8-10s in practice (real timings observed live) — a single shared
+	// 15s budget for both was a real bug: the first call alone often
+	// left too little of the budget for the second, killing it mid
+	// request and surfacing as "resolve failed" even though the account
+	// genuinely existed. Each call now gets its own fresh timeout.
+	byLoginCtx, byLoginCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer byLoginCancel()
 
-	out, err := a.run(ctx, "user_by_login", handle)
+	out, err := a.run(byLoginCtx, "user_by_login", handle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve twitter handle @%s: %w", handle, err)
 	}
@@ -147,7 +170,10 @@ func (a *TwitterSourceAdapter) Resolve(identifier string) ([]model.SourceConfig,
 		return nil, fmt.Errorf("twitter handle not found: @%s", handle)
 	}
 
-	tweetsOut, err := a.run(ctx, "user_tweets", user.IDStr, "--limit", strconv.Itoa(staleAfterSampleSize))
+	tweetsCtx, tweetsCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer tweetsCancel()
+
+	tweetsOut, err := a.run(tweetsCtx, "user_tweets", user.IDStr, "--limit", strconv.Itoa(staleAfterSampleSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to sample recent tweets for @%s: %w", handle, err)
 	}
@@ -185,12 +211,15 @@ func (a *TwitterSourceAdapter) Verify(config model.SourceConfig) (model.SourceCo
 // resolver is just a generic HTTP GET, so there's nothing twitter-specific
 // left to resolve.
 func (a *TwitterSourceAdapter) Discover(source model.SourceConfig, limit int) (api.DiscoverResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
 	nextPollAt := time.Now().Add(twitterPollInterval)
 
-	userOut, err := a.run(ctx, "user_by_login", source.Identifier)
+	// Same fix as Resolve: two sequential calls, each individually
+	// taking 8-10s in practice — a single shared budget starved the
+	// second call almost every time. Each gets its own fresh timeout.
+	userCtx, userCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer userCancel()
+
+	userOut, err := a.run(userCtx, "user_by_login", source.Identifier)
 	if err != nil {
 		// Same split as every other adapter: a fetch/auth failure here is
 		// "unreachable," not an adapter error — drives Source health. This
@@ -204,7 +233,10 @@ func (a *TwitterSourceAdapter) Discover(source model.SourceConfig, limit int) (a
 		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: "twscrape returned no user for this handle"}, nil
 	}
 
-	tweetsOut, err := a.run(ctx, "user_tweets", user.IDStr, "--limit", strconv.Itoa(limit))
+	tweetsCtx, tweetsCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer tweetsCancel()
+
+	tweetsOut, err := a.run(tweetsCtx, "user_tweets", user.IDStr, "--limit", strconv.Itoa(limit))
 	if err != nil {
 		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}

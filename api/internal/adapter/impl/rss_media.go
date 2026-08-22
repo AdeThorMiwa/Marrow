@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -49,7 +50,10 @@ func (a *RSSMediaSourceAdapter) Name() string { return a.name }
 // transformation, unlike Substack's /feed-suffix heuristic. Podcast feed
 // URLs are already direct XML endpoints.
 func (a *RSSMediaSourceAdapter) Resolve(identifier string) ([]model.SourceConfig, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 20s, not the original 5s — real feeds observed live taking
+	// 15-18s to respond (e.g. projectzero.google/feed.xml), which a 5s
+	// budget killed every time even though the feed was perfectly valid.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	feed, err := a.parser.ParseURLWithContext(identifier, ctx)
@@ -87,7 +91,8 @@ func (a *RSSMediaSourceAdapter) Verify(config model.SourceConfig) (model.SourceC
 }
 
 func (a *RSSMediaSourceAdapter) Discover(source model.SourceConfig, limit int) (api.DiscoverResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Same 20s budget as Resolve — see its comment.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	nextPollAt := time.Now().Add(rssMediaPollInterval)
@@ -154,8 +159,26 @@ func (a *RSSMediaSourceAdapter) classify(item *gofeed.Item) (model.RawContentBlo
 	// no distinct "caption for just this clip" beyond that.
 	return model.RawContentBlock{
 		Kind:     kind,
-		MediaRef: model.MediaRef{Resolver: a.id, Ref: enc.URL}.Serialize(),
+		MediaRef: mediaRefFor(a.id, enc.URL),
 	}, true
+}
+
+// mediaRefFor routes a plain-http:// enclosure through the "proxy"
+// resolver instead of tagging it "rss-media" directly — real bug found
+// live: some podcast feeds (BBC's redirector chain among them) serve
+// audio over http:// at every hop with no https alternative anywhere,
+// which both iOS (App Transport Security) and Android (cleartext-traffic
+// policy since API 28) block by default for a mobile client, silently —
+// playback just does nothing. Handing the client that URL directly (the
+// way a normal https:// enclosure is) can't work; the bytes have to pass
+// through our own https server instead (see handler.MediaHandler.Proxy).
+// https:// enclosures (the common case) are unaffected — same "rss-media"
+// tag as always, unwrapped straight to a directly-playable URL.
+func mediaRefFor(adapterID, rawURL string) string {
+	if u, err := url.Parse(rawURL); err == nil && u.Scheme == "http" {
+		return model.MediaRef{Resolver: "proxy", Ref: rawURL}.Serialize()
+	}
+	return model.MediaRef{Resolver: adapterID, Ref: rawURL}.Serialize()
 }
 
 // RSSMediaResolver is the MediaResolver half — see the doc comment on
