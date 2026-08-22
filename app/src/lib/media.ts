@@ -9,6 +9,16 @@ import type { BlockSummary } from './types';
 // by the time a user watches).
 const PLAYBACK_URL_RESOLVERS = new Set(['instagram']);
 
+// "proxy" is a distinct resolver, not a real adapter — rss_media.go tags a
+// block this way when its enclosure is plain http:// with no https
+// alternative anywhere (some older podcast feeds, e.g. BBC's redirector
+// chain). Both iOS (App Transport Security) and Android (cleartext-traffic
+// policy) block that for a mobile client by default, silently — so instead
+// of unwrapping to the raw URL, this routes through the backend's actual
+// byte-streaming proxy (not a redirect — redirecting to the same http://
+// URL would hit the identical block).
+const PROXY_RESOLVER = 'proxy';
+
 // Audio/video blocks store `media_ref` as a self-describing
 // "resolver://actual-url" envelope (see api/internal/model/media_ref.go) —
 // split on the FIRST "://" only, since the URL itself contains "://".
@@ -24,6 +34,9 @@ export function getPlayableUrl(block: BlockSummary): string | undefined {
   const resolver = block.media_ref.slice(0, idx);
   if (PLAYBACK_URL_RESOLVERS.has(resolver)) {
     return `${resolveBaseUrl()}/media/playback-url/${block.media_ref}`;
+  }
+  if (resolver === PROXY_RESOLVER) {
+    return `${resolveBaseUrl()}/media/proxy/${block.media_ref}`;
   }
   return block.media_ref.slice(idx + 3);
 }

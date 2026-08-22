@@ -51,5 +51,6 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 
 	mediaHandler := handler.NewMediaHandler()
 	ginApp.GET("/media/playback-url/*ref", mediaHandler.PlaybackURL)
+	ginApp.GET("/media/proxy/*ref", mediaHandler.Proxy)
 
 }
