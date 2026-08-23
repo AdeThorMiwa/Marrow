@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -21,6 +22,22 @@ import (
 
 const twitterPollInterval = 15 * time.Minute
 
+// twitterRateLimitBackoff: see docs/twitter-rate-limit-handling/design.md §5.
+const twitterRateLimitBackoff = 15 * time.Minute
+
+// rateLimitedResult: see docs/twitter-rate-limit-handling/design.md §5.
+func rateLimitedResult(err error) (api.DiscoverResult, bool) {
+	if !errors.Is(err, api.ErrRateLimited) {
+		return api.DiscoverResult{}, false
+	}
+	return api.DiscoverResult{
+		Reachable:  false,
+		Transient:  true,
+		NextPollAt: time.Now().Add(twitterRateLimitBackoff),
+		Reason:     "twitter: rate limited (all configured accounts exhausted)",
+	}, true
+}
+
 // TwitterSourceAdapter authenticates as a real X/Twitter account and reads
 // its follows/timeline via twscrape (https://github.com/vladkens/twscrape),
 // shelled out to the same way yt-dlp is for YouTube captions — there is no
@@ -37,8 +54,7 @@ type TwitterSourceAdapter struct {
 	id       string
 	name     string
 	dbPath   string
-	username string
-	cookies  string
+	accounts []lib.TwitterAccount
 }
 
 // NewTwitterAdapter asserts twscrape is actually on PATH before returning —
@@ -60,25 +76,41 @@ func NewTwitterAdapter(cfg lib.TwitterConfig) *TwitterSourceAdapter {
 		panic("failed to create twscrape db directory: " + err.Error())
 	}
 
-	a := &TwitterSourceAdapter{id: "twitter", name: "Twitter/X", dbPath: dbPath, username: cfg.Username, cookies: cfg.Cookies}
-	a.ensureAccount()
+	a := &TwitterSourceAdapter{id: "twitter", name: "Twitter/X", dbPath: dbPath, accounts: allAccounts(cfg)}
+	a.ensureAccounts()
 	return a
 }
 
-// ensureAccount registers this adapter's configured account with twscrape's
-// local session store if it isn't already there. twscrape treats this as a
-// no-op (a logged warning, not an error) when the account already exists,
-// so it's safe to call on every boot rather than tracking "did we already
-// do this" ourselves. Does not panic on failure — a stale/expired cookie
-// shouldn't crash the whole process at startup; it'll surface naturally as
-// a real error the next time Resolve/Discover actually calls the API.
-func (a *TwitterSourceAdapter) ensureAccount() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+// allAccounts: see docs/twitter-rate-limit-handling/design.md §2.
+func allAccounts(cfg lib.TwitterConfig) []lib.TwitterAccount {
+	accounts := []lib.TwitterAccount{{Username: cfg.Username, Cookies: cfg.Cookies}}
+	if cfg.AdditionalAccountsJSON == "" {
+		return accounts
+	}
 
-	cmd := exec.CommandContext(ctx, "twscrape", "--db", a.dbPath, "add_cookie", a.username, a.cookies)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Printf("twitter adapter: failed to register account %s with twscrape: %v (%s)", a.username, err, strings.TrimSpace(string(out)))
+	var extra []lib.TwitterAccount
+	if err := json.Unmarshal([]byte(cfg.AdditionalAccountsJSON), &extra); err != nil {
+		log.Printf("twitter adapter: invalid additional_accounts_json, ignoring: %v", err)
+		return accounts
+	}
+	return append(accounts, extra...)
+}
+
+// ensureAccounts registers every configured account with twscrape's local
+// session store if it isn't already there. twscrape treats this as a no-op
+// (a logged warning, not an error) when an account already exists, so it's
+// safe to call on every boot rather than tracking "did we already do this"
+// ourselves. Does not panic on failure — a stale/expired cookie shouldn't
+// crash the whole process at startup; it'll surface naturally as a real
+// error the next time Resolve/Discover actually calls the API.
+func (a *TwitterSourceAdapter) ensureAccounts() {
+	for _, acc := range a.accounts {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		cmd := exec.CommandContext(ctx, "twscrape", "--db", a.dbPath, "add_cookie", acc.Username, acc.Cookies)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			log.Printf("twitter adapter: failed to register account %s with twscrape: %v (%s)", acc.Username, err, strings.TrimSpace(string(out)))
+		}
+		cancel()
 	}
 }
 
@@ -89,17 +121,30 @@ func (a *TwitterSourceAdapter) Name() string { return a.name }
 // stdout — every twscrape subcommand used here prints either one JSON
 // object (user_by_login) or one JSON object per line (user_tweets), left
 // for callers to parse since the shape differs per command.
+//
+// TWS_RAISE_WHEN_NO_ACCOUNT + rate-limit detection: see
+// docs/twitter-rate-limit-handling/design.md §3, §4.
 func (a *TwitterSourceAdapter) run(ctx context.Context, args ...string) ([]byte, error) {
 	fullArgs := append([]string{"--db", a.dbPath}, args...)
 	cmd := exec.CommandContext(ctx, "twscrape", fullArgs...)
+	cmd.Env = append(os.Environ(), "TWS_RAISE_WHEN_NO_ACCOUNT=true")
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("twscrape %s failed: %w (%s)", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+		combined := strings.TrimSpace(stderr.String())
+		if isRateLimitedOutput(combined) {
+			return nil, fmt.Errorf("%w: %s", api.ErrRateLimited, combined)
+		}
+		return nil, fmt.Errorf("twscrape %s failed: %w (%s)", strings.Join(args, " "), err, combined)
 	}
 	return stdout.Bytes(), nil
+}
+
+// isRateLimitedOutput: see docs/twitter-rate-limit-handling/design.md §4.
+func isRateLimitedOutput(combinedOutput string) bool {
+	return strings.Contains(combinedOutput, "NoAccountError") || strings.Contains(combinedOutput, "No account available for queue")
 }
 
 // normalizeHandle accepts a bare handle, an @-prefixed handle, or a
@@ -221,6 +266,9 @@ func (a *TwitterSourceAdapter) Discover(source model.SourceConfig, limit int) (a
 
 	userOut, err := a.run(userCtx, "user_by_login", source.Identifier)
 	if err != nil {
+		if result, ok := rateLimitedResult(err); ok {
+			return result, nil
+		}
 		// Same split as every other adapter: a fetch/auth failure here is
 		// "unreachable," not an adapter error — drives Source health. This
 		// is also where an expired session cookie actually shows up (a
@@ -238,6 +286,9 @@ func (a *TwitterSourceAdapter) Discover(source model.SourceConfig, limit int) (a
 
 	tweetsOut, err := a.run(tweetsCtx, "user_tweets", user.IDStr, "--limit", strconv.Itoa(limit))
 	if err != nil {
+		if result, ok := rateLimitedResult(err); ok {
+			return result, nil
+		}
 		return api.DiscoverResult{NextPollAt: nextPollAt, Reachable: false, Reason: err.Error()}, nil
 	}
 

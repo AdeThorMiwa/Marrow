@@ -1,10 +1,47 @@
 package ingest
 
 import (
+	"errors"
+	api "marrow/internal/adapter/api"
+	"marrow/internal/adapter/registry"
 	model "marrow/internal/model"
 	"reflect"
 	"testing"
 )
+
+// fakeRateLimitedAdapter only reacts to its own dedicated fake identifier
+// (rateLimitTestIdentifier) — every other Resolve call gets a plain,
+// unrelated error, so registering it never affects any other test's real
+// URLs. See docs/twitter-rate-limit-handling/design.md §7.
+const rateLimitTestIdentifier = "ratelimit-test://fake"
+
+type fakeRateLimitedAdapter struct{}
+
+func (fakeRateLimitedAdapter) Id() string   { return "fake-rate-limited" }
+func (fakeRateLimitedAdapter) Name() string { return "Fake Rate Limited" }
+func (fakeRateLimitedAdapter) Resolve(identifier string) ([]model.SourceConfig, error) {
+	if identifier == rateLimitTestIdentifier {
+		return nil, api.ErrRateLimited
+	}
+	return nil, errors.New("fakeRateLimitedAdapter: not this one")
+}
+func (fakeRateLimitedAdapter) Verify(config model.SourceConfig) (model.SourceConfig, error) {
+	return model.SourceConfig{}, errors.New("not implemented")
+}
+func (fakeRateLimitedAdapter) Discover(source model.SourceConfig, limit int) (api.DiscoverResult, error) {
+	return api.DiscoverResult{}, errors.New("not implemented")
+}
+
+func init() {
+	registry.Register(fakeRateLimitedAdapter{})
+}
+
+func TestResolveUrl_RateLimited_ShortCircuits(t *testing.T) {
+	_, err := ResolveUrl(rateLimitTestIdentifier)
+	if !errors.Is(err, api.ErrRateLimited) {
+		t.Fatalf("expected ResolveUrl to propagate api.ErrRateLimited, got: %v", err)
+	}
+}
 
 var source = model.SourceConfig{
 	Name:       "Perspectives",

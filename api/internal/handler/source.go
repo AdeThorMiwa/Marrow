@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	api "marrow/internal/adapter/api"
 	"marrow/internal/app"
 	"marrow/internal/database/dbo"
 	"marrow/internal/handler/dto"
@@ -32,6 +33,10 @@ func (h *SourceHandler) Resolve(c *gin.Context) {
 
 	configs, err := ingest.ResolveUrl(req.Identifier)
 	if err != nil {
+		if errors.Is(err, api.ErrRateLimited) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}

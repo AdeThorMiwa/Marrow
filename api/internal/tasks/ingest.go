@@ -130,6 +130,11 @@ func (t *IngestDiscoveryTask) applyDiscoverOutcome(ctx context.Context, src *mod
 	reachable := err == nil && result.Reachable
 
 	switch {
+	// Transient: see docs/twitter-rate-limit-handling/design.md §5, §6.
+	case !reachable && result.Transient:
+		src.NextPollAt = result.NextPollAt
+		src.FailureReason = failureReason(err, result.Reason)
+
 	case !reachable:
 		src.ConsecutiveFailures++
 		src.ConsecutiveEmptyPolls = 0

@@ -22,6 +22,9 @@ type DiscoverResult struct {
 	// nothing more specific than "unreachable," which is the common case
 	// for a plain network/parse failure.
 	Reason string
+	// Transient: only meaningful when Reachable is false — see
+	// docs/twitter-rate-limit-handling/design.md §5.
+	Transient bool
 }
 
 type SourceAdapter interface {

@@ -103,3 +103,34 @@ func TestApplyDiscoverOutcome_ItemsResetBothCounters(t *testing.T) {
 		t.Errorf("expected next_poll_at to trust the adapter's own suggestion on real success, got %s want %s", src.NextPollAt, resultWithItems.NextPollAt)
 	}
 }
+
+// See docs/twitter-rate-limit-handling/design.md §5, §6.
+func TestApplyDiscoverOutcome_Transient_LeavesFailuresAndHealthUntouched(t *testing.T) {
+	pool := testutil.ConnectDB(t)
+	src := testutil.SeedSource(t, pool, "src-transient")
+	src.ConsecutiveFailures = 2
+	src.ConsecutiveEmptyPolls = 1
+	src.Health = model.HealthBroken
+	appCtx := &app.Context{Pool: pool}
+	task := newOutcomeTestTask(t, appCtx)
+
+	nextPollAt := time.Now().Add(15 * time.Minute)
+	transientResult := api.DiscoverResult{Reachable: false, Transient: true, NextPollAt: nextPollAt, Reason: "twitter: rate limited"}
+	task.applyDiscoverOutcome(context.Background(), &src, transientResult, nil)
+
+	if src.ConsecutiveFailures != 2 {
+		t.Errorf("expected ConsecutiveFailures untouched at 2, got %d", src.ConsecutiveFailures)
+	}
+	if src.ConsecutiveEmptyPolls != 1 {
+		t.Errorf("expected ConsecutiveEmptyPolls untouched at 1, got %d", src.ConsecutiveEmptyPolls)
+	}
+	if src.Health != model.HealthBroken {
+		t.Errorf("expected Health untouched at broken, got %s", src.Health)
+	}
+	if !src.NextPollAt.Equal(nextPollAt) {
+		t.Errorf("expected next_poll_at to trust the adapter's own transient backoff, got %s want %s", src.NextPollAt, nextPollAt)
+	}
+	if src.FailureReason == nil || *src.FailureReason != "twitter: rate limited" {
+		t.Errorf("expected FailureReason to surface the transient reason, got %v", src.FailureReason)
+	}
+}

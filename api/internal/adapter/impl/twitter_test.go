@@ -2,9 +2,11 @@ package adapter
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
+	lib "marrow/internal"
 	model "marrow/internal/model"
 )
 
@@ -272,5 +274,58 @@ func TestTweetToComment_DirectReplyToRootTweet_HasEmptyReplyToID(t *testing.T) {
 	got := tweetToComment(tw, "1")
 	if got.ReplyToID != "" {
 		t.Errorf("expected empty ReplyToID for a direct reply to the root tweet, got %q", got.ReplyToID)
+	}
+}
+
+// See docs/twitter-rate-limit-handling/design.md §4. traceback is a
+// synthetic fixture shaped like twscrape's real NoAccountError, not a
+// captured live call — no way to trigger a real one without an actual
+// rate-limited account (see design.md §9).
+func TestIsRateLimitedOutput(t *testing.T) {
+	traceback := `Traceback (most recent call last):
+  File "/usr/local/bin/twscrape", line 8, in <module>
+    sys.exit(run())
+twscrape.accounts_pool.NoAccountError: No account available for queue UserByScreenName`
+	if !isRateLimitedOutput(traceback) {
+		t.Error("expected a NoAccountError traceback to be detected as rate-limited")
+	}
+}
+
+func TestIsRateLimitedOutput_UnrelatedError_ReturnsFalse(t *testing.T) {
+	if isRateLimitedOutput("some unrelated network error: connection refused") {
+		t.Error("expected an unrelated error not to be detected as rate-limited")
+	}
+}
+
+func TestAllAccounts_PrimaryOnly(t *testing.T) {
+	got := allAccounts(lib.TwitterConfig{Username: "u", Cookies: "c"})
+	want := []lib.TwitterAccount{{Username: "u", Cookies: "c"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("allAccounts() = %+v, want %+v", got, want)
+	}
+}
+
+func TestAllAccounts_PrimaryPlusAdditional(t *testing.T) {
+	cfg := lib.TwitterConfig{
+		Username:               "primary",
+		Cookies:                "primary-cookies",
+		AdditionalAccountsJSON: `[{"username":"second","cookies":"second-cookies"}]`,
+	}
+	got := allAccounts(cfg)
+	want := []lib.TwitterAccount{
+		{Username: "primary", Cookies: "primary-cookies"},
+		{Username: "second", Cookies: "second-cookies"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("allAccounts() = %+v, want %+v", got, want)
+	}
+}
+
+func TestAllAccounts_InvalidJSON_FallsBackToPrimaryOnly(t *testing.T) {
+	cfg := lib.TwitterConfig{Username: "u", Cookies: "c", AdditionalAccountsJSON: "not json"}
+	got := allAccounts(cfg)
+	want := []lib.TwitterAccount{{Username: "u", Cookies: "c"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("allAccounts() with invalid JSON = %+v, want fallback to primary only %+v", got, want)
 	}
 }

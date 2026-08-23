@@ -1,6 +1,7 @@
 package ingest
 
 import (
+	"errors"
 	"fmt"
 
 	api "marrow/internal/adapter/api"
@@ -11,11 +12,17 @@ import (
 // ResolveUrl tries each registered adapter until one recognizes the
 // identifier, returning its candidates — which may be empty (recognized
 // but no publication found, e.g. an empty profile) even with a nil error.
+//
+// ErrRateLimited short-circuits: see
+// docs/twitter-rate-limit-handling/design.md §7.
 func ResolveUrl(url string) ([]model.SourceConfig, error) {
 	for _, adp := range registry.SourceAdapters() {
 		configs, err := adp.Resolve(url)
 		if err == nil {
 			return configs, nil
+		}
+		if errors.Is(err, api.ErrRateLimited) {
+			return nil, err
 		}
 	}
 
