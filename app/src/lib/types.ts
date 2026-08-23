@@ -27,6 +27,14 @@ export type Source = {
   created_at: string;
 };
 
+export type Group = {
+  id: string;
+  name: string;
+  icon: string;
+  is_default: boolean;
+  created_at: string;
+};
+
 export type BlockKind = 'text' | 'audio' | 'video' | 'image';
 
 export type BlockSummary = {

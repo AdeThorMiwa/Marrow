@@ -1,16 +1,17 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionSheet, AudioPlayer, Badge, Button, ConfirmDialog, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
+import { ActionSheet, AudioPlayer, Badge, Button, ConfirmDialog, CreateGroupDialog, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { getFeed } from '@/lib/feed';
+import { addSourceToGroup, createGroup, listGroups } from '@/lib/group';
 import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
 import { deleteSource, listSources } from '@/lib/source';
-import type { ContentPayload, FeedItem, Source, SourceHealthPayload } from '@/lib/types';
+import type { ContentPayload, FeedItem, Group, Source, SourceHealthPayload } from '@/lib/types';
 import { useTheme } from '@/theme/theme-provider';
 
 // Fixed width for each item in the source rail — long names ellipsize
@@ -443,8 +444,10 @@ function SourceHealthRow({ payload, horizontalInset }: { payload: SourceHealthPa
 // first item is always a "+" that opens the add-source screen; the rest
 // are the sources themselves, logo (rounded, per-adapter icon) + name
 // below in a fixed-width column so a long name ellipsizes instead of
-// resizing its neighbors. Long-pressing a source opens an action sheet
-// (delete only, for now); confirming removes it via onDeleted.
+// resizing its neighbors. Rail order: "+" add button, then groups, then
+// sources (docs/source-groups/requirements.md Requirement 5.2). Long-
+// pressing a source opens an action sheet (add to group, delete);
+// confirming a delete removes it via onDeleted.
 function SourceRail({
   sources,
   horizontalInset,
@@ -458,6 +461,25 @@ function SourceRail({
   const [menuSource, setMenuSource] = useState<Source | null>(null);
   const [confirmSource, setConfirmSource] = useState<Source | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupPickerSource, setGroupPickerSource] = useState<Source | null>(null);
+  const [creatingGroupFor, setCreatingGroupFor] = useState<Source | null>(null);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+    listGroups()
+      .then((data) => {
+        if (!ignore) setGroups(data);
+      })
+      .catch(() => {
+        // Same tolerance as the sources fetch — a secondary rail element.
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const handleDelete = useCallback(async () => {
     if (!confirmSource) return;
@@ -474,13 +496,54 @@ function SourceRail({
     }
   }, [confirmSource, onDeleted]);
 
+  const handleAddToExistingGroup = useCallback(
+    async (groupId: string) => {
+      if (!groupPickerSource) return;
+      const sourceId = groupPickerSource.id;
+      setGroupPickerSource(null);
+      try {
+        await addSourceToGroup(sourceId, groupId);
+      } catch {
+        // Silent-fail, same tolerance as the rest of this rail's mutations.
+      }
+    },
+    [groupPickerSource]
+  );
+
+  const handleCreateGroup = useCallback(
+    async (name: string, icon: string) => {
+      if (!creatingGroupFor) return;
+      setCreatingGroup(true);
+      try {
+        const group = await createGroup(name, icon);
+        setGroups((prev) => [...prev, group]);
+        await addSourceToGroup(creatingGroupFor.id, group.id);
+        setCreatingGroupFor(null);
+      } catch {
+        // Dialog stays open with the button re-enabled — same retry pattern
+        // as handleDelete.
+      } finally {
+        setCreatingGroup(false);
+      }
+    },
+    [creatingGroupFor]
+  );
+
+  const railData = useMemo(
+    () => [
+      ...groups.map((g) => ({ kind: 'group' as const, key: `g-${g.id}`, group: g })),
+      ...sources.map((s) => ({ kind: 'source' as const, key: `s-${s.id}`, source: s })),
+    ],
+    [groups, sources]
+  );
+
   return (
     <>
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={sources}
-        keyExtractor={(item) => item.id}
+        data={railData}
+        keyExtractor={(item) => item.key}
         // Web's FlatList defaults to flexGrow: 1 on its outer scroll
         // container — inside this screen's column flex layout that means
         // "grow vertically to fill all remaining space" instead of sizing to
@@ -510,7 +573,13 @@ function SourceRail({
             </Text>
           </Pressable>
         }
-        renderItem={({ item }) => <SourceRailItem source={item} onLongPress={() => setMenuSource(item)} />}
+        renderItem={({ item }) =>
+          item.kind === 'group' ? (
+            <GroupRailItem group={item.group} />
+          ) : (
+            <SourceRailItem source={item.source} onLongPress={() => setMenuSource(item.source)} />
+          )
+        }
       />
 
       <ActionSheet
@@ -518,11 +587,31 @@ function SourceRail({
         onClose={() => setMenuSource(null)}
         actions={[
           {
+            label: 'Add to group',
+            onPress: () => setGroupPickerSource(menuSource),
+          },
+          {
             label: 'Delete',
             destructive: true,
             onPress: () => setConfirmSource(menuSource),
           },
         ]}
+      />
+
+      <ActionSheet
+        visible={groupPickerSource !== null}
+        onClose={() => setGroupPickerSource(null)}
+        actions={[
+          { label: '+ New group', onPress: () => setCreatingGroupFor(groupPickerSource) },
+          ...groups.map((g) => ({ label: g.name, onPress: () => handleAddToExistingGroup(g.id) })),
+        ]}
+      />
+
+      <CreateGroupDialog
+        visible={creatingGroupFor !== null}
+        loading={creatingGroup}
+        onCreate={handleCreateGroup}
+        onCancel={() => setCreatingGroupFor(null)}
       />
 
       <ConfirmDialog
@@ -535,6 +624,32 @@ function SourceRail({
         onCancel={() => setConfirmSource(null)}
       />
     </>
+  );
+}
+
+// No per-group color (docs/source-groups/design.md §2) — same
+// background/ink circle every other badge in the app already uses.
+function GroupRailItem({ group }: { group: Group }) {
+  const theme = useTheme();
+  return (
+    <View style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
+      <View
+        style={{
+          width: SOURCE_RAIL_LOGO_SIZE,
+          height: SOURCE_RAIL_LOGO_SIZE,
+          borderRadius: SOURCE_RAIL_LOGO_SIZE / 2,
+          borderWidth: theme.borderWidth,
+          borderColor: theme.colors.ink,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}>
+        <MaterialCommunityIcons name={group.icon as any} size={SOURCE_RAIL_LOGO_SIZE * 0.5} color={theme.colors.ink} />
+      </View>
+      <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail">
+        {group.name}
+      </Text>
+    </View>
   );
 }
 

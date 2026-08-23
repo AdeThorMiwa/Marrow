@@ -16,7 +16,7 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	// a different origin (e.g. localhost:8081 vs 8082) during development.
 	ginApp.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type")
 		c.Next()
 	})
@@ -40,6 +40,16 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	ginApp.POST("/sources", sourceHandler.Create)
 	ginApp.GET("/sources", sourceHandler.List)
 	ginApp.DELETE("/sources/:id", sourceHandler.Delete)
+
+	groupHandler := handler.NewGroupHandler(app)
+	ginApp.POST("/groups", groupHandler.Create)
+	ginApp.GET("/groups", groupHandler.List)
+	ginApp.PATCH("/groups/:id", groupHandler.Update)
+	ginApp.DELETE("/groups/:id", groupHandler.Delete)
+	ginApp.POST("/sources/:id/groups", groupHandler.AddSourceToGroup)
+	ginApp.DELETE("/sources/:id/groups/:gid", groupHandler.RemoveSourceFromGroup)
+	ginApp.GET("/sources/:id/groups", groupHandler.ListGroupsForSource)
+	ginApp.GET("/groups/:id/sources", groupHandler.ListSourcesForGroup)
 
 	assembler := feed.NewAssembler(&feed.ContentFeedSource{}, &feed.SourceHealthFeedSource{})
 	feedHandler := handler.NewFeedHandler(app, assembler)

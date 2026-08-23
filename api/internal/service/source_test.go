@@ -1,4 +1,4 @@
-package ingest_test
+package services_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"marrow/internal/app"
 	model "marrow/internal/model"
-	ingest "marrow/internal/service"
+	"marrow/internal/service"
 	"marrow/internal/testutil"
 )
 
@@ -16,7 +16,7 @@ func TestAddSources_PersistsResolvedSource(t *testing.T) {
 
 	configs := []model.SourceConfig{{Identifier: "https://debliu.substack.com", AdapterID: "substack", Name: "Perspectives"}}
 
-	sources, err := ingest.AddSources(context.Background(), a, configs)
+	sources, err := services.AddSources(context.Background(), a, configs)
 	if err != nil {
 		t.Fatalf("AddSources failed: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestAddSources_UnverifiableConfigErrors(t *testing.T) {
 
 	configs := []model.SourceConfig{{Identifier: "https://completely-unsupported-domain.com", AdapterID: "substack", Name: "bogus"}}
 
-	_, err := ingest.AddSources(context.Background(), a, configs)
+	_, err := services.AddSources(context.Background(), a, configs)
 	if err == nil {
 		t.Fatal("expected an error for an unverifiable config, got nil")
 	}

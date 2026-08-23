@@ -12,7 +12,7 @@ import (
 	"marrow/internal/database/dbo"
 	model "marrow/internal/model"
 	"marrow/internal/queue"
-	ingestsvc "marrow/internal/service"
+	"marrow/internal/service"
 	"marrow/internal/workers"
 )
 
@@ -88,7 +88,7 @@ func (t *IngestDiscoveryTask) Run(ctx context.Context) error {
 }
 
 func (t *IngestDiscoveryTask) processSource(ctx context.Context, src model.Source) {
-	result, err := ingestsvc.FetchContents(src.ToSourceConfig(), t.DefaultBatchLimit)
+	result, err := services.FetchContents(src.ToSourceConfig(), t.DefaultBatchLimit)
 	if err != nil {
 		log.Printf("discover failed for source %s: %v", src.ID, err)
 	}

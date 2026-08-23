@@ -9,7 +9,7 @@ import (
 	"marrow/internal/database/dbo"
 	"marrow/internal/handler/dto"
 	model "marrow/internal/model"
-	ingest "marrow/internal/service"
+	"marrow/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,7 +31,7 @@ func (h *SourceHandler) Resolve(c *gin.Context) {
 		return
 	}
 
-	configs, err := ingest.ResolveUrl(req.Identifier)
+	configs, err := services.ResolveUrl(req.Identifier)
 	if err != nil {
 		if errors.Is(err, api.ErrRateLimited) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
@@ -63,7 +63,7 @@ func (h *SourceHandler) Create(c *gin.Context) {
 		configs[i] = s.ToSourceConfig()
 	}
 
-	sources, err := ingest.AddSources(c.Request.Context(), h.App, configs)
+	sources, err := services.AddSources(c.Request.Context(), h.App, configs)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
@@ -94,12 +94,12 @@ func (h *SourceHandler) List(c *gin.Context) {
 }
 
 // Delete handles DELETE /sources/:id — soft-deletes the Source; its Content
-// is deliberately left in place (see ingest.DeleteSource).
+// is deliberately left in place (see services.DeleteSource).
 func (h *SourceHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
-	if err := ingest.DeleteSource(c.Request.Context(), h.App, id); err != nil {
-		if errors.Is(err, ingest.ErrSourceNotFound) {
+	if err := services.DeleteSource(c.Request.Context(), h.App, id); err != nil {
+		if errors.Is(err, services.ErrSourceNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}

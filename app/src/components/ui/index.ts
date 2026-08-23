@@ -5,6 +5,7 @@ export { Badge, type BadgeProps } from './badge';
 export { Button, type ButtonProps } from './button';
 export { CommentThread, type CommentThreadProps } from './comment-thread';
 export { ConfirmDialog, type ConfirmDialogProps } from './confirm-dialog';
+export { CreateGroupDialog, type CreateGroupDialogProps } from './create-group-dialog';
 export { Markdown, type MarkdownProps } from './markdown';
 export { SourceLogo, type SourceLogoProps } from './source-logo';
 export { Surface, type SurfaceProps } from './surface';

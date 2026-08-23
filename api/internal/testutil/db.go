@@ -66,8 +66,19 @@ func ConnectDB(t *testing.T) *pgxpool.Pool {
 		conn.Release()
 	})
 
-	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, sources`); err != nil {
+	// source_groups references sources — must be TRUNCATEd in the same
+	// statement (Postgres requires every referencing table in one TRUNCATE
+	// unless the FK has ON DELETE CASCADE, which source_id's doesn't — see
+	// docs/source-groups/design.md §1).
+	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, source_groups, sources`); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
+	}
+
+	// Not TRUNCATEd (would also wipe the seeded default group, which
+	// AddSources' default-group FK insert depends on existing) — delete
+	// only what a test run itself created.
+	if _, err := pool.Exec(context.Background(), `DELETE FROM groups WHERE NOT is_default`); err != nil {
+		t.Fatalf("failed to clean up test-created groups: %v", err)
 	}
 
 	return pool

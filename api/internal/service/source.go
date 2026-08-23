@@ -1,4 +1,4 @@
-package ingest
+package services
 
 import (
 	"context"
@@ -54,6 +54,10 @@ func AddSources(ctx context.Context, app *app.Context, configs []model.SourceCon
 	err := dbo.WithTx(ctx, app.Pool, func(ctx context.Context, tx pgx.Tx) error {
 		for _, s := range sources {
 			if err := dbo.InsertSource(ctx, tx, s); err != nil {
+				return err
+			}
+			// Requirement 1.2: see docs/source-groups/design.md §4.
+			if err := dbo.AddSourceToGroup(ctx, tx, s.ID, model.DefaultGroupID); err != nil {
 				return err
 			}
 		}
