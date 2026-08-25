@@ -14,7 +14,7 @@ type fakePrimary struct {
 	err   error
 }
 
-func (f *fakePrimary) Produce(ctx context.Context, app *app.Context, cursor *Cursor, limit int) ([]FeedItem, *Cursor, error) {
+func (f *fakePrimary) Produce(ctx context.Context, app *app.Context, query AssemblyQuery) ([]FeedItem, *Cursor, error) {
 	return f.items, f.next, f.err
 }
 
@@ -37,7 +37,7 @@ func TestAssemble_SingleAnchor(t *testing.T) {
 	}}
 
 	a := NewAssembler(primary, inline)
-	merged, _, err := a.Assemble(context.Background(), &app.Context{}, nil, 10)
+	merged, _, err := a.Assemble(context.Background(), &app.Context{}, NewAssemblyQueryBuilder().SetLimit(10).Build())
 	if err != nil {
 		t.Fatalf("Assemble failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestAssemble_MultipleInlineSourcesShareAnchor_PreservesRegistrationOrder(t 
 	second := &fakeInline{insertions: []Insertion{{Item: FeedItem{Type: "second"}, AnchorAfter: "a"}}}
 
 	a := NewAssembler(primary, first, second)
-	merged, _, err := a.Assemble(context.Background(), &app.Context{}, nil, 10)
+	merged, _, err := a.Assemble(context.Background(), &app.Context{}, NewAssemblyQueryBuilder().SetLimit(10).Build())
 	if err != nil {
 		t.Fatalf("Assemble failed: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestAssemble_InlineSourceFailure_DoesNotFailWholeRequest(t *testing.T) {
 	broken := &fakeInline{err: errors.New("boom")}
 
 	a := NewAssembler(primary, broken)
-	merged, _, err := a.Assemble(context.Background(), &app.Context{}, nil, 10)
+	merged, _, err := a.Assemble(context.Background(), &app.Context{}, NewAssemblyQueryBuilder().SetLimit(10).Build())
 	if err != nil {
 		t.Fatalf("expected Assemble to succeed despite inline source failure, got: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestAssemble_PrimaryFailure_FailsWholeRequest(t *testing.T) {
 	primary := &fakePrimary{err: errors.New("db down")}
 
 	a := NewAssembler(primary)
-	if _, _, err := a.Assemble(context.Background(), &app.Context{}, nil, 10); err == nil {
+	if _, _, err := a.Assemble(context.Background(), &app.Context{}, NewAssemblyQueryBuilder().SetLimit(10).Build()); err == nil {
 		t.Fatal("expected Assemble to fail when the primary source fails")
 	}
 }

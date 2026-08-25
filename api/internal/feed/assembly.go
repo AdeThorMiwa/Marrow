@@ -19,8 +19,8 @@ func NewAssembler(primary PrimaryFeedSource, inline ...InlineFeedSource) *Assemb
 	return &Assembler{Primary: primary, Inline: inline}
 }
 
-func (a *Assembler) Assemble(ctx context.Context, app *app.Context, cursor *Cursor, limit int) ([]FeedItem, *Cursor, error) {
-	page, next, err := a.Primary.Produce(ctx, app, cursor, limit)
+func (a *Assembler) Assemble(ctx context.Context, app *app.Context, query AssemblyQuery) ([]FeedItem, *Cursor, error) {
+	page, next, err := a.Primary.Produce(ctx, app, query)
 	if err != nil {
 		return nil, nil, err
 	}

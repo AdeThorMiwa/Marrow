@@ -8,7 +8,7 @@ import (
 
 // PrimaryFeedSource drives pagination. Exactly one is active at a time.
 type PrimaryFeedSource interface {
-	Produce(ctx context.Context, app *app.Context, cursor *Cursor, limit int) ([]FeedItem, *Cursor, error)
+	Produce(ctx context.Context, app *app.Context, query AssemblyQuery) ([]FeedItem, *Cursor, error)
 }
 
 // InlineFeedSource is handed the primary page already assembled and

@@ -18,18 +18,18 @@ const excerptLimit = 280
 // chronological order (Requirement 1, 4).
 type ContentFeedSource struct{}
 
-func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, cursor *Cursor, limit int) ([]FeedItem, *Cursor, error) {
-	overfetch := limit * app.Config.Feed.OverfetchFactor
+func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, query AssemblyQuery) ([]FeedItem, *Cursor, error) {
+	overfetch := query.Limit() * app.Config.Feed.OverfetchFactor
 
 	var createdAt, publishedAt *time.Time
 	var contentID string
-	if cursor != nil {
+	if cursor := query.Cursor(); cursor != nil {
 		createdAt = &cursor.CreatedAt
 		publishedAt = &cursor.PublishedAt
 		contentID = cursor.ContentID
 	}
 
-	candidates, err := dbo.ListFeedVisibleContents(ctx, app.Pool, createdAt, publishedAt, contentID, overfetch)
+	candidates, err := dbo.ListFeedVisibleContents(ctx, app.Pool, createdAt, publishedAt, contentID, overfetch, query.SourceIDs())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,8 +66,8 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, curso
 	// exists so a future ranking term (e.g. Rabbithole similarity) has room
 	// to reorder before this trim, not because this step needs to sort.
 	ranked := candidates
-	if len(ranked) > limit {
-		ranked = ranked[:limit]
+	if len(ranked) > query.Limit() {
+		ranked = ranked[:query.Limit()]
 	}
 
 	items := make([]FeedItem, len(ranked))

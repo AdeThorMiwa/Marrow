@@ -63,7 +63,7 @@ func TestContentFeedSource_OnlyReturnsFeedVisibleContent(t *testing.T) {
 	}
 
 	s := &feed.ContentFeedSource{}
-	items, _, err := s.Produce(context.Background(), a, nil, 10)
+	items, _, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetLimit(10).Build())
 	if err != nil {
 		t.Fatalf("Produce failed: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestContentFeedSource_CursorPagination(t *testing.T) {
 
 	s := &feed.ContentFeedSource{}
 
-	page1, cursor1, err := s.Produce(context.Background(), a, nil, 1)
+	page1, cursor1, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetLimit(1).Build())
 	if err != nil {
 		t.Fatalf("page 1 failed: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestContentFeedSource_CursorPagination(t *testing.T) {
 		t.Fatalf("expected page 1 to be the newest item, got %+v", page1)
 	}
 
-	page2, cursor2, err := s.Produce(context.Background(), a, cursor1, 1)
+	page2, cursor2, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetCursor(cursor1).SetLimit(1).Build())
 	if err != nil {
 		t.Fatalf("page 2 failed: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestContentFeedSource_CursorPagination(t *testing.T) {
 		t.Fatalf("expected page 2 to be the middle item, got %+v", page2)
 	}
 
-	page3, _, err := s.Produce(context.Background(), a, cursor2, 1)
+	page3, _, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetCursor(cursor2).SetLimit(1).Build())
 	if err != nil {
 		t.Fatalf("page 3 failed: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestContentFeedSource_PublishedAtBreaksCreatedAtTie(t *testing.T) {
 	vid3 := seedReadyContent(t, a, src.ID, yesterday, yesterday)
 
 	s := &feed.ContentFeedSource{}
-	items, _, err := s.Produce(context.Background(), a, nil, 10)
+	items, _, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetLimit(10).Build())
 	if err != nil {
 		t.Fatalf("Produce failed: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestContentFeedSource_SameHourCreatedAtTiesDespiteRaceyDifferences(t *testi
 	earlierPublished := seedReadyContent(t, a, src.ID, now.Add(-time.Hour), now.Add(3*time.Second))
 
 	s := &feed.ContentFeedSource{}
-	items, _, err := s.Produce(context.Background(), a, nil, 10)
+	items, _, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetLimit(10).Build())
 	if err != nil {
 		t.Fatalf("Produce failed: %v", err)
 	}

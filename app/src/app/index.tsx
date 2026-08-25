@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionSheet, AudioPlayer, Badge, Button, ConfirmDialog, CreateGroupDialog, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
 import { ApiError } from '@/lib/api';
-import { getFeed } from '@/lib/feed';
+import { getFeed, type FeedFilter } from '@/lib/feed';
 import { addSourceToGroup, createGroup, listGroups } from '@/lib/group';
 import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
 import { deleteSource, listSources } from '@/lib/source';
@@ -32,6 +32,38 @@ const DESKTOP_BREAKPOINT = 768;
 // whoever's mid-read); they queue behind the "new posts" pill instead,
 // same as Twitter/X.
 const NEW_CONTENT_POLL_MS = 30_000;
+
+// Matches model.DefaultGroupID (api/internal/model/group.go) — every
+// source always belongs to this group, so selecting it means "everything."
+const DEFAULT_GROUP_ID = 'default';
+
+// See docs/feed-filtering/design.md §7.
+type FilterSelection = { sourceIds: Set<string>; groupIds: Set<string> };
+
+const DEFAULT_SELECTION: FilterSelection = { sourceIds: new Set(), groupIds: new Set([DEFAULT_GROUP_ID]) };
+
+function toggleFilterItem(prev: FilterSelection, kind: 'source' | 'group', id: string): FilterSelection {
+  if (kind === 'group' && id === DEFAULT_GROUP_ID) {
+    return { sourceIds: new Set(), groupIds: new Set([DEFAULT_GROUP_ID]) }; // Requirement 2.3
+  }
+
+  const sourceIds = new Set(prev.sourceIds);
+  const groupIds = new Set(prev.groupIds);
+  groupIds.delete(DEFAULT_GROUP_ID); // Requirement 2.2
+
+  const target = kind === 'source' ? sourceIds : groupIds;
+  if (target.has(id)) target.delete(id);
+  else target.add(id);
+
+  if (sourceIds.size === 0 && groupIds.size === 0) {
+    return DEFAULT_SELECTION; // Requirement 2.4
+  }
+  return { sourceIds, groupIds };
+}
+
+function toFeedFilter(selection: FilterSelection): FeedFilter {
+  return { sourceIds: [...selection.sourceIds], groupIds: [...selection.groupIds] };
+}
 
 function feedItemKeyOf(item: FeedItem): string {
   if (item.type === 'source_health') return `source_health:${item.payload.source_id}`;
@@ -69,6 +101,15 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [newItems, setNewItems] = useState<FeedItem[]>([]);
 
+  // Active source/group filter — see docs/feed-filtering/design.md §7.
+  const [selection, setSelection] = useState<FilterSelection>(DEFAULT_SELECTION);
+  // Mirrors `selection` for the polling interval/onEndReached closures below
+  // — same stale-closure reason knownKeysRef exists.
+  const selectionRef = useRef<FilterSelection>(selection);
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
   const flatListRef = useRef<FlatList<FeedItem>>(null);
   // Mirrors `items`/`newItems` for the polling effect below — a plain
   // interval closes over stale state otherwise, and re-registering the
@@ -93,7 +134,7 @@ export default function HomeScreen() {
   const loadFirstPage = useCallback(async () => {
     setError(null);
     try {
-      const page = await getFeed();
+      const page = await getFeed(undefined, undefined, toFeedFilter(selectionRef.current));
       setItems(page.items);
       setNewItems([]);
       knownKeysRef.current = new Set(page.items.map(feedItemKeyOf));
@@ -105,12 +146,15 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Mount, and again whenever the active filter changes (Requirement 2 —
+  // reloads exactly the way it already does on mount, no separate reset
+  // logic needed).
   useEffect(() => {
     let ignore = false;
     (async () => {
       setError(null);
       try {
-        const page = await getFeed();
+        const page = await getFeed(undefined, undefined, toFeedFilter(selection));
         if (ignore) return;
         setItems(page.items);
         knownKeysRef.current = new Set(page.items.map(feedItemKeyOf));
@@ -124,7 +168,7 @@ export default function HomeScreen() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [selection]);
 
   // Mirrors items.length for the polling effect — lets it tell "the feed is
   // genuinely empty/failed to load" apart from "there's a page showing,
@@ -146,7 +190,7 @@ export default function HomeScreen() {
 
     const interval = setInterval(async () => {
       try {
-        const page = await getFeed();
+        const page = await getFeed(undefined, undefined, toFeedFilter(selectionRef.current));
         setError(null);
 
         const fresh = page.items.filter((item) => !knownKeysRef.current.has(feedItemKeyOf(item)));
@@ -189,7 +233,7 @@ export default function HomeScreen() {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await getFeed(cursor);
+      const page = await getFeed(cursor, undefined, toFeedFilter(selectionRef.current));
       setItems((prev) => [...prev, ...page.items]);
       page.items.forEach((item) => knownKeysRef.current.add(feedItemKeyOf(item)));
       setCursor(page.next_cursor || undefined);
@@ -225,6 +269,8 @@ export default function HomeScreen() {
             sources={sources}
             horizontalInset={horizontalInset}
             onDeleted={(id) => setSources((prev) => prev.filter((s) => s.id !== id))}
+            selection={selection}
+            onToggle={(kind, id) => setSelection((prev) => toggleFilterItem(prev, kind, id))}
           />
           <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
 
@@ -452,10 +498,14 @@ function SourceRail({
   sources,
   horizontalInset,
   onDeleted,
+  selection,
+  onToggle,
 }: {
   sources: Source[];
   horizontalInset: number;
   onDeleted: (id: string) => void;
+  selection: FilterSelection;
+  onToggle: (kind: 'source' | 'group', id: string) => void;
 }) {
   const theme = useTheme();
   const [menuSource, setMenuSource] = useState<Source | null>(null);
@@ -531,7 +581,9 @@ function SourceRail({
 
   const railData = useMemo(
     () => [
-      ...groups.map((g) => ({ kind: 'group' as const, key: `g-${g.id}`, group: g })),
+      // The default group is implicit (every source is always in it) —
+      // nothing useful to show as its own chip.
+      ...groups.filter((g) => !g.is_default).map((g) => ({ kind: 'group' as const, key: `g-${g.id}`, group: g })),
       ...sources.map((s) => ({ kind: 'source' as const, key: `s-${s.id}`, source: s })),
     ],
     [groups, sources]
@@ -575,9 +627,18 @@ function SourceRail({
         }
         renderItem={({ item }) =>
           item.kind === 'group' ? (
-            <GroupRailItem group={item.group} />
+            <GroupRailItem
+              group={item.group}
+              selected={selection.groupIds.has(item.group.id)}
+              onPress={() => onToggle('group', item.group.id)}
+            />
           ) : (
-            <SourceRailItem source={item.source} onLongPress={() => setMenuSource(item.source)} />
+            <SourceRailItem
+              source={item.source}
+              selected={selection.sourceIds.has(item.source.id)}
+              onPress={() => onToggle('source', item.source.id)}
+              onLongPress={() => setMenuSource(item.source)}
+            />
           )
         }
       />
@@ -603,7 +664,7 @@ function SourceRail({
         onClose={() => setGroupPickerSource(null)}
         actions={[
           { label: '+ New group', onPress: () => setCreatingGroupFor(groupPickerSource) },
-          ...groups.map((g) => ({ label: g.name, onPress: () => handleAddToExistingGroup(g.id) })),
+          ...groups.filter((g) => !g.is_default).map((g) => ({ label: g.name, onPress: () => handleAddToExistingGroup(g.id) })),
         ]}
       />
 
@@ -628,17 +689,19 @@ function SourceRail({
 }
 
 // No per-group color (docs/source-groups/design.md §2) — same
-// background/ink circle every other badge in the app already uses.
-function GroupRailItem({ group }: { group: Group }) {
+// background/ink circle every other badge in the app already uses. Selected
+// state (feed filter active — docs/feed-filtering/design.md §7) is border
+// weight only, never color.
+function GroupRailItem({ group, selected, onPress }: { group: Group; selected: boolean; onPress: () => void }) {
   const theme = useTheme();
   return (
-    <View style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
+    <Pressable onPress={onPress} style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
       <View
         style={{
           width: SOURCE_RAIL_LOGO_SIZE,
           height: SOURCE_RAIL_LOGO_SIZE,
           borderRadius: SOURCE_RAIL_LOGO_SIZE / 2,
-          borderWidth: theme.borderWidth,
+          borderWidth: selected ? theme.borderWidthError : theme.borderWidth,
           borderColor: theme.colors.ink,
           alignItems: 'center',
           justifyContent: 'center',
@@ -649,17 +712,40 @@ function GroupRailItem({ group }: { group: Group }) {
       <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail">
         {group.name}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
-function SourceRailItem({ source, onLongPress }: { source: Source; onLongPress: () => void }) {
+function SourceRailItem({
+  source,
+  selected,
+  onPress,
+  onLongPress,
+}: {
+  source: Source;
+  selected: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
   const theme = useTheme();
+  const ringSize = SOURCE_RAIL_LOGO_SIZE + 6;
   return (
     <Pressable
+      onPress={onPress}
       onLongPress={onLongPress}
       style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
-      <SourceLogo adapterId={source.adapter_id} logoUrl={source.logo_url} name={source.name} size={SOURCE_RAIL_LOGO_SIZE} />
+      <View
+        style={{
+          width: ringSize,
+          height: ringSize,
+          borderRadius: ringSize / 2,
+          borderWidth: selected ? theme.borderWidthError : 0,
+          borderColor: theme.colors.ink,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <SourceLogo adapterId={source.adapter_id} logoUrl={source.logo_url} name={source.name} size={SOURCE_RAIL_LOGO_SIZE} />
+      </View>
       <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail" style={{ width: '100%', textAlign: 'center' }}>
         {source.name}
       </Text>

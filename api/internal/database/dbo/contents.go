@@ -3,6 +3,7 @@ package dbo
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	model "marrow/internal/model"
@@ -77,27 +78,39 @@ const feedCreatedAtBucket = `date_trunc('hour', c.created_at AT TIME ZONE 'UTC')
 // cursorCreatedAt == nil means "first page" — no cursor filter. Blocks are
 // NOT populated here; feed.ContentFeedSource batches those separately
 // across the whole candidate set (avoids N+1).
-func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorCreatedAt, cursorPublishedAt *time.Time, cursorContentID string, limit int) ([]model.Content, error) {
+func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorCreatedAt, cursorPublishedAt *time.Time, cursorContentID string, limit int, sourceIDs []string) ([]model.Content, error) {
 	var rows pgx.Rows
 	var err error
 
 	if cursorCreatedAt == nil {
+		args := []any{limit}
+		filter := ""
+		if len(sourceIDs) > 0 {
+			args = append(args, sourceIDs)
+			filter = fmt.Sprintf(" AND c.source_id = ANY($%d)", len(args))
+		}
 		rows, err = db.Query(ctx, `
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
-			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
+			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)`+filter+`
 			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
-		`, limit)
+		`, args...)
 	} else {
+		args := []any{limit, *cursorCreatedAt, *cursorPublishedAt, cursorContentID}
+		filter := ""
+		if len(sourceIDs) > 0 {
+			args = append(args, sourceIDs)
+			filter = fmt.Sprintf(" AND c.source_id = ANY($%d)", len(args))
+		}
 		rows, err = db.Query(ctx, `
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
 			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
-			  AND (`+feedCreatedAtBucket+`, c.published_at, c.id) < ($2, $3, $4)
+			  AND (`+feedCreatedAtBucket+`, c.published_at, c.id) < ($2, $3, $4)`+filter+`
 			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
-		`, limit, *cursorCreatedAt, *cursorPublishedAt, cursorContentID)
+		`, args...)
 	}
 	if err != nil {
 		return nil, err
