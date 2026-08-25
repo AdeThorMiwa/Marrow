@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AudioPlayer, Button, CommentThread, Markdown, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
@@ -11,8 +11,16 @@ import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
 import type { BlockDetail, Comment, ContentDetail } from '@/lib/types';
 import { useTheme } from '@/theme/theme-provider';
 
+// Same breakpoint/centered-column pattern as the feed screen
+// (app/src/app/index.tsx) — half the viewport, centered, capped at the
+// design system's readable measure, on a wide (desktop/web) viewport.
+const DESKTOP_BREAKPOINT = 768;
+
 export default function ContentDetailScreen() {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= DESKTOP_BREAKPOINT;
+  const horizontalInset = isDesktop ? theme.spacing.lg : theme.spacing.md;
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [detail, setDetail] = useState<ContentDetail | null>(null);
@@ -60,56 +68,63 @@ export default function ContentDetailScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: theme.spacing.lg,
-          paddingVertical: theme.spacing.md,
-        }}>
-        <Button variant="ghost" size="sm" onPress={() => router.back()}>
-          Back
-        </Button>
+        style={
+          isDesktop
+            ? { flex: 1, width: '50%', maxWidth: theme.maxContentWidth, alignSelf: 'center' }
+            : { flex: 1 }
+        }>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: horizontalInset,
+            paddingVertical: theme.spacing.md,
+          }}>
+          <Button variant="ghost" size="sm" onPress={() => router.back()}>
+            Back
+          </Button>
+        </View>
+
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={theme.colors.ink} />
+          </View>
+        ) : null}
+
+        {error ? (
+          <View style={{ paddingHorizontal: horizontalInset, gap: theme.spacing.sm }}>
+            <Text variant="body" tone="secondary">
+              {error}
+            </Text>
+          </View>
+        ) : null}
+
+        {detail ? (
+          <ScrollView contentContainerStyle={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.lg, gap: theme.spacing.md }}>
+            <Text variant="caption" tone="secondary">
+              @{detail.source_name}
+            </Text>
+            {detail.title ? <Text variant="heading2">{detail.title}</Text> : null}
+
+            {detail.blocks.map((block, i) => (
+              <ContentDetailBlock key={i} block={block} />
+            ))}
+            {/* Content.Description — separate from Blocks, e.g. a video's synopsis */}
+            {detail.description ? <Markdown>{detail.description}</Markdown> : null}
+
+            <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider, marginVertical: theme.spacing.sm }} />
+
+            {detail.has_comments ? (
+              <CommentsSection
+                comments={comments}
+                loading={commentsLoading}
+                error={commentsError}
+                onLoad={loadComments}
+              />
+            ) : null}
+          </ScrollView>
+        ) : null}
       </View>
-
-      {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={theme.colors.ink} />
-        </View>
-      ) : null}
-
-      {error ? (
-        <View style={{ paddingHorizontal: theme.spacing.lg, gap: theme.spacing.sm }}>
-          <Text variant="body" tone="secondary">
-            {error}
-          </Text>
-        </View>
-      ) : null}
-
-      {detail ? (
-        <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.md }}>
-          <Text variant="caption" tone="secondary">
-            @{detail.source_name}
-          </Text>
-          {detail.title ? <Text variant="heading2">{detail.title}</Text> : null}
-
-          {detail.blocks.map((block, i) => (
-            <ContentDetailBlock key={i} block={block} />
-          ))}
-          {/* Content.Description — separate from Blocks, e.g. a video's synopsis */}
-          {detail.description ? <Markdown>{detail.description}</Markdown> : null}
-
-          <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider, marginVertical: theme.spacing.sm }} />
-
-          {detail.has_comments ? (
-            <CommentsSection
-              comments={comments}
-              loading={commentsLoading}
-              error={commentsError}
-              onLoad={loadComments}
-            />
-          ) : null}
-        </ScrollView>
-      ) : null}
     </SafeAreaView>
   );
 }
