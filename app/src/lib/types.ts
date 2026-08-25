@@ -25,6 +25,7 @@ export type Source = {
   last_fetched_at?: string;
   next_poll_at: string;
   created_at: string;
+  paused: boolean;
 };
 
 export type Group = {
@@ -33,6 +34,7 @@ export type Group = {
   icon: string;
   is_default: boolean;
   created_at: string;
+  paused: boolean;
 };
 
 export type BlockKind = 'text' | 'audio' | 'video' | 'image';

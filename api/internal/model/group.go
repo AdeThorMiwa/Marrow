@@ -11,4 +11,6 @@ type Group struct {
 	Icon      string
 	IsDefault bool
 	CreatedAt time.Time
+	// Paused: see docs/pause-source-group/design.md §1, §3.
+	Paused bool
 }

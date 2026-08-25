@@ -81,7 +81,7 @@ func (h *SourceHandler) Create(c *gin.Context) {
 func (h *SourceHandler) List(c *gin.Context) {
 	sources, err := dbo.ListAllSources(c.Request.Context(), h.App.Pool)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -103,9 +103,26 @@ func (h *SourceHandler) Delete(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
+	c.Status(http.StatusNoContent)
+}
+
+// Pause / Unpause: see docs/pause-source-group/design.md §5.
+func (h *SourceHandler) Pause(c *gin.Context) {
+	if err := services.PauseSource(c.Request.Context(), h.App, c.Param("id")); err != nil {
+		internalError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *SourceHandler) Unpause(c *gin.Context) {
+	if err := services.UnpauseSource(c.Request.Context(), h.App, c.Param("id")); err != nil {
+		internalError(c, err)
+		return
+	}
 	c.Status(http.StatusNoContent)
 }

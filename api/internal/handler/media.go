@@ -60,7 +60,7 @@ func (h *MediaHandler) PlaybackURL(c *gin.Context) {
 
 	url, err := resolver.ResolvePlaybackURL(ctx, ref)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 

@@ -18,3 +18,11 @@ export async function addSourceToGroup(sourceId: string, groupId: string): Promi
 export async function removeSourceFromGroup(sourceId: string, groupId: string): Promise<void> {
   await client.delete(`/sources/${sourceId}/groups/${groupId}`);
 }
+
+export async function pauseGroup(id: string): Promise<void> {
+  await client.post(`/groups/${id}/pause`);
+}
+
+export async function unpauseGroup(id: string): Promise<void> {
+  await client.post(`/groups/${id}/unpause`);
+}

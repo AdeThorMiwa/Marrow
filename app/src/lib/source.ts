@@ -19,3 +19,11 @@ export async function createSources(sources: SourceConfig[]): Promise<Source[]> 
 export async function deleteSource(id: string): Promise<void> {
   await client.delete(`/sources/${id}`);
 }
+
+export async function pauseSource(id: string): Promise<void> {
+  await client.post(`/sources/${id}/pause`);
+}
+
+export async function unpauseSource(id: string): Promise<void> {
+  await client.post(`/sources/${id}/unpause`);
+}

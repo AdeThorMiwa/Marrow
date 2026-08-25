@@ -40,6 +40,8 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	ginApp.POST("/sources", sourceHandler.Create)
 	ginApp.GET("/sources", sourceHandler.List)
 	ginApp.DELETE("/sources/:id", sourceHandler.Delete)
+	ginApp.POST("/sources/:id/pause", sourceHandler.Pause)
+	ginApp.POST("/sources/:id/unpause", sourceHandler.Unpause)
 
 	groupHandler := handler.NewGroupHandler(app)
 	ginApp.POST("/groups", groupHandler.Create)
@@ -50,6 +52,8 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	ginApp.DELETE("/sources/:id/groups/:gid", groupHandler.RemoveSourceFromGroup)
 	ginApp.GET("/sources/:id/groups", groupHandler.ListGroupsForSource)
 	ginApp.GET("/groups/:id/sources", groupHandler.ListSourcesForGroup)
+	ginApp.POST("/groups/:id/pause", groupHandler.Pause)
+	ginApp.POST("/groups/:id/unpause", groupHandler.Unpause)
 
 	assembler := feed.NewAssembler(&feed.ContentFeedSource{}, &feed.SourceHealthFeedSource{})
 	feedHandler := handler.NewFeedHandler(app, assembler)

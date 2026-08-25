@@ -38,13 +38,13 @@ func (h *FeedHandler) List(c *gin.Context) {
 
 	query, err := h.buildQuery(c.Request.Context(), cursor, limit, c.Query("source_ids"), c.Query("group_ids"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
 	items, next, err := h.Assembler.Assemble(c.Request.Context(), h.App, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 

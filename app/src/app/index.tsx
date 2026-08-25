@@ -8,9 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionSheet, AudioPlayer, Badge, Button, ConfirmDialog, CreateGroupDialog, Markdown, SourceLogo, Text, VideoPlayer, YouTubeEmbed } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { getFeed, type FeedFilter } from '@/lib/feed';
-import { addSourceToGroup, createGroup, listGroups } from '@/lib/group';
+import { addSourceToGroup, createGroup, listGroups, pauseGroup, unpauseGroup } from '@/lib/group';
 import { getPlayableUrl, getYoutubeVideoId } from '@/lib/media';
-import { deleteSource, listSources } from '@/lib/source';
+import { deleteSource, listSources, pauseSource, unpauseSource } from '@/lib/source';
 import type { ContentPayload, FeedItem, Group, Source, SourceHealthPayload } from '@/lib/types';
 import { useTheme } from '@/theme/theme-provider';
 
@@ -269,6 +269,9 @@ export default function HomeScreen() {
             sources={sources}
             horizontalInset={horizontalInset}
             onDeleted={(id) => setSources((prev) => prev.filter((s) => s.id !== id))}
+            onSourcePausedChanged={(id, paused) =>
+              setSources((prev) => prev.map((s) => (s.id === id ? { ...s, paused } : s)))
+            }
             selection={selection}
             onToggle={(kind, id) => setSelection((prev) => toggleFilterItem(prev, kind, id))}
           />
@@ -498,12 +501,14 @@ function SourceRail({
   sources,
   horizontalInset,
   onDeleted,
+  onSourcePausedChanged,
   selection,
   onToggle,
 }: {
   sources: Source[];
   horizontalInset: number;
   onDeleted: (id: string) => void;
+  onSourcePausedChanged: (id: string, paused: boolean) => void;
   selection: FilterSelection;
   onToggle: (kind: 'source' | 'group', id: string) => void;
 }) {
@@ -516,6 +521,7 @@ function SourceRail({
   const [groupPickerSource, setGroupPickerSource] = useState<Source | null>(null);
   const [creatingGroupFor, setCreatingGroupFor] = useState<Source | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [menuGroup, setMenuGroup] = useState<Group | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -545,6 +551,30 @@ function SourceRail({
       setDeleting(false);
     }
   }, [confirmSource, onDeleted]);
+
+  const handleTogglePauseSource = useCallback(async () => {
+    if (!menuSource) return;
+    const { id, paused } = menuSource;
+    setMenuSource(null);
+    try {
+      await (paused ? unpauseSource(id) : pauseSource(id));
+      onSourcePausedChanged(id, !paused);
+    } catch {
+      // Silent-fail, same tolerance as the rest of this rail's mutations.
+    }
+  }, [menuSource, onSourcePausedChanged]);
+
+  const handleTogglePauseGroup = useCallback(async () => {
+    if (!menuGroup) return;
+    const { id, paused } = menuGroup;
+    setMenuGroup(null);
+    try {
+      await (paused ? unpauseGroup(id) : pauseGroup(id));
+      setGroups((prev) => prev.map((g) => (g.id === id ? { ...g, paused: !paused } : g)));
+    } catch {
+      // Silent-fail, same tolerance as the rest of this rail's mutations.
+    }
+  }, [menuGroup]);
 
   const handleAddToExistingGroup = useCallback(
     async (groupId: string) => {
@@ -631,6 +661,7 @@ function SourceRail({
               group={item.group}
               selected={selection.groupIds.has(item.group.id)}
               onPress={() => onToggle('group', item.group.id)}
+              onLongPress={() => setMenuGroup(item.group)}
             />
           ) : (
             <SourceRailItem
@@ -652,6 +683,10 @@ function SourceRail({
             onPress: () => setGroupPickerSource(menuSource),
           },
           {
+            label: menuSource?.paused ? 'Resume' : 'Pause',
+            onPress: handleTogglePauseSource,
+          },
+          {
             label: 'Delete',
             destructive: true,
             onPress: () => setConfirmSource(menuSource),
@@ -665,6 +700,17 @@ function SourceRail({
         actions={[
           { label: '+ New group', onPress: () => setCreatingGroupFor(groupPickerSource) },
           ...groups.filter((g) => !g.is_default).map((g) => ({ label: g.name, onPress: () => handleAddToExistingGroup(g.id) })),
+        ]}
+      />
+
+      <ActionSheet
+        visible={menuGroup !== null}
+        onClose={() => setMenuGroup(null)}
+        actions={[
+          {
+            label: menuGroup?.paused ? 'Resume' : 'Pause',
+            onPress: handleTogglePauseGroup,
+          },
         ]}
       />
 
@@ -691,11 +737,25 @@ function SourceRail({
 // No per-group color (docs/source-groups/design.md §2) — same
 // background/ink circle every other badge in the app already uses. Selected
 // state (feed filter active — docs/feed-filtering/design.md §7) is border
-// weight only, never color.
-function GroupRailItem({ group, selected, onPress }: { group: Group; selected: boolean; onPress: () => void }) {
+// weight only; paused state (docs/pause-source-group/design.md §6) is
+// opacity — neither ever uses color, independent of each other.
+function GroupRailItem({
+  group,
+  selected,
+  onPress,
+  onLongPress,
+}: {
+  group: Group;
+  selected: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
   const theme = useTheme();
   return (
-    <Pressable onPress={onPress} style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs, opacity: group.paused ? 0.4 : 1 }}>
       <View
         style={{
           width: SOURCE_RAIL_LOGO_SIZE,
@@ -709,7 +769,7 @@ function GroupRailItem({ group, selected, onPress }: { group: Group; selected: b
         }}>
         <MaterialCommunityIcons name={group.icon as any} size={SOURCE_RAIL_LOGO_SIZE * 0.5} color={theme.colors.ink} />
       </View>
-      <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail">
+      <Text variant="caption" tone="secondary" numberOfLines={1} ellipsizeMode="tail" style={{ width: '100%', textAlign: 'center' }}>
         {group.name}
       </Text>
     </Pressable>
@@ -728,17 +788,16 @@ function SourceRailItem({
   onLongPress: () => void;
 }) {
   const theme = useTheme();
-  const ringSize = SOURCE_RAIL_LOGO_SIZE + 6;
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs }}>
+      style={{ width: SOURCE_RAIL_ITEM_WIDTH, alignItems: 'center', gap: theme.spacing.xs, opacity: source.paused ? 0.4 : 1 }}>
       <View
         style={{
-          width: ringSize,
-          height: ringSize,
-          borderRadius: ringSize / 2,
+          width: SOURCE_RAIL_LOGO_SIZE,
+          height: SOURCE_RAIL_LOGO_SIZE,
+          borderRadius: SOURCE_RAIL_LOGO_SIZE / 2,
           borderWidth: selected ? theme.borderWidthError : 0,
           borderColor: theme.colors.ink,
           alignItems: 'center',

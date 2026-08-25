@@ -26,8 +26,9 @@ type GroupResponse struct {
 	Icon      string    `json:"icon"`
 	IsDefault bool      `json:"is_default"`
 	CreatedAt time.Time `json:"created_at"`
+	Paused    bool      `json:"paused"`
 }
 
 func FromGroup(g model.Group) GroupResponse {
-	return GroupResponse{ID: g.ID, Name: g.Name, Icon: g.Icon, IsDefault: g.IsDefault, CreatedAt: g.CreatedAt}
+	return GroupResponse{ID: g.ID, Name: g.Name, Icon: g.Icon, IsDefault: g.IsDefault, CreatedAt: g.CreatedAt, Paused: g.Paused}
 }

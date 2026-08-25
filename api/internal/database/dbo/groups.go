@@ -6,6 +6,7 @@ import (
 	model "marrow/internal/model"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func InsertGroup(ctx context.Context, db DataSource, g model.Group) error {
@@ -18,7 +19,7 @@ func InsertGroup(ctx context.Context, db DataSource, g model.Group) error {
 
 func ListGroups(ctx context.Context, db DataSource) ([]model.Group, error) {
 	rows, err := db.Query(ctx, `
-		SELECT id, name, icon, is_default, created_at FROM groups ORDER BY created_at ASC
+		SELECT id, name, icon, is_default, created_at, paused FROM groups ORDER BY created_at ASC
 	`)
 	if err != nil {
 		return nil, err
@@ -35,6 +36,36 @@ func UpdateGroup(ctx context.Context, db DataSource, g model.Group) error {
 		UPDATE groups SET name = $2, icon = $3 WHERE id = $1
 	`, g.ID, g.Name, g.Icon)
 	return err
+}
+
+// PauseGroup / UnpauseGroup: see docs/pause-source-group/design.md §3 —
+// both propagate onto every member source's own `paused` flag, run inside
+// one WithTx so the group's display state can't desync from what's
+// actually being scheduled.
+func PauseGroup(ctx context.Context, db *pgxpool.Pool, id string) error {
+	return WithTx(ctx, db, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE groups SET paused = true WHERE id = $1`, id); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			UPDATE sources SET paused = true
+			WHERE id IN (SELECT source_id FROM source_groups WHERE group_id = $1)
+		`, id)
+		return err
+	})
+}
+
+func UnpauseGroup(ctx context.Context, db *pgxpool.Pool, id string) error {
+	return WithTx(ctx, db, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE groups SET paused = false WHERE id = $1`, id); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			UPDATE sources SET paused = false, next_poll_at = now()
+			WHERE id IN (SELECT source_id FROM source_groups WHERE group_id = $1)
+		`, id)
+		return err
+	})
 }
 
 // DeleteGroup: hard delete, cascades to source_groups (see the migration's
@@ -66,7 +97,7 @@ func RemoveSourceFromGroup(ctx context.Context, db DataSource, sourceID, groupID
 
 func ListGroupsForSource(ctx context.Context, db DataSource, sourceID string) ([]model.Group, error) {
 	rows, err := db.Query(ctx, `
-		SELECT g.id, g.name, g.icon, g.is_default, g.created_at
+		SELECT g.id, g.name, g.icon, g.is_default, g.created_at, g.paused
 		FROM groups g
 		JOIN source_groups sg ON sg.group_id = g.id
 		WHERE sg.source_id = $1
@@ -82,7 +113,7 @@ func ListGroupsForSource(ctx context.Context, db DataSource, sourceID string) ([
 
 func ListSourcesForGroup(ctx context.Context, db DataSource, groupID string) ([]model.Source, error) {
 	rows, err := db.Query(ctx, `
-		SELECT s.id, s.adapter_id, s.identifier, s.name, s.logo_url, s.last_fetched_at, s.next_poll_at, s.health, s.consecutive_failures, s.consecutive_empty_polls, s.stale_after_seconds, s.failure_reason, s.created_at, s.deleted_at
+		SELECT s.id, s.adapter_id, s.identifier, s.name, s.logo_url, s.last_fetched_at, s.next_poll_at, s.health, s.consecutive_failures, s.consecutive_empty_polls, s.stale_after_seconds, s.failure_reason, s.created_at, s.deleted_at, s.paused
 		FROM sources s
 		JOIN source_groups sg ON sg.source_id = s.id
 		WHERE sg.group_id = $1 AND s.deleted_at IS NULL
@@ -100,7 +131,7 @@ func scanGroups(rows pgx.Rows) ([]model.Group, error) {
 	var out []model.Group
 	for rows.Next() {
 		var g model.Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.Icon, &g.IsDefault, &g.CreatedAt); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Icon, &g.IsDefault, &g.CreatedAt, &g.Paused); err != nil {
 			return nil, err
 		}
 		out = append(out, g)

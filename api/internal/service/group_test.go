@@ -46,6 +46,16 @@ func TestRemoveSourceFromGroup_DefaultGroupRejected(t *testing.T) {
 	}
 }
 
+func TestPauseGroup_DefaultGroupRejected(t *testing.T) {
+	pool := testutil.ConnectDB(t)
+	a := &app.Context{Pool: pool}
+
+	err := services.PauseGroup(context.Background(), a, model.DefaultGroupID)
+	if !errors.Is(err, services.ErrCannotPauseDefaultGroup) {
+		t.Fatalf("expected ErrCannotPauseDefaultGroup, got: %v", err)
+	}
+}
+
 func TestCreateGroup_ThenAddSourceToIt(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	a := &app.Context{Pool: pool}

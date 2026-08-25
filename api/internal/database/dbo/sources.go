@@ -39,14 +39,25 @@ func SoftDeleteSource(ctx context.Context, db DataSource, id string) (bool, erro
 	return tag.RowsAffected() > 0, nil
 }
 
+// PauseSource / UnpauseSource: see docs/pause-source-group/design.md §3.
+func PauseSource(ctx context.Context, db DataSource, id string) error {
+	_, err := db.Exec(ctx, `UPDATE sources SET paused = true WHERE id = $1`, id)
+	return err
+}
+
+func UnpauseSource(ctx context.Context, db DataSource, id string) error {
+	_, err := db.Exec(ctx, `UPDATE sources SET paused = false, next_poll_at = now() WHERE id = $1`, id)
+	return err
+}
+
 // ListDueSources only ever considers active sources — a deleted source
 // stops being polled, but keeps its row (and its Content's source_id
 // pointing at it) intact.
 func ListDueSources(ctx context.Context, db DataSource, now time.Time) ([]model.Source, error) {
 	rows, err := db.Query(ctx, `
-		SELECT id, adapter_id, identifier, name, logo_url, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, failure_reason, created_at, deleted_at
+		SELECT id, adapter_id, identifier, name, logo_url, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, failure_reason, created_at, deleted_at, paused
 		FROM sources
-		WHERE next_poll_at <= $1 AND deleted_at IS NULL
+		WHERE next_poll_at <= $1 AND deleted_at IS NULL AND NOT paused
 	`, now)
 	if err != nil {
 		return nil, err
@@ -65,7 +76,7 @@ func GetSourcesByIDs(ctx context.Context, db DataSource, ids []string) ([]model.
 	}
 
 	rows, err := db.Query(ctx, `
-		SELECT id, adapter_id, identifier, name, logo_url, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, failure_reason, created_at, deleted_at
+		SELECT id, adapter_id, identifier, name, logo_url, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, failure_reason, created_at, deleted_at, paused
 		FROM sources
 		WHERE id = ANY($1)
 	`, ids)
@@ -81,7 +92,7 @@ func GetSourcesByIDs(ctx context.Context, db DataSource, ids []string) ([]model.
 // ListDueSources (this backs GET /sources, the source-picker list).
 func ListAllSources(ctx context.Context, db DataSource) ([]model.Source, error) {
 	rows, err := db.Query(ctx, `
-		SELECT id, adapter_id, identifier, name, logo_url, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, failure_reason, created_at, deleted_at
+		SELECT id, adapter_id, identifier, name, logo_url, last_fetched_at, next_poll_at, health, consecutive_failures, consecutive_empty_polls, stale_after_seconds, failure_reason, created_at, deleted_at, paused
 		FROM sources
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -100,7 +111,7 @@ func scanSources(rows pgx.Rows) ([]model.Source, error) {
 		var s model.Source
 		var health string
 		var staleAfterSeconds int
-		if err := rows.Scan(&s.ID, &s.AdapterID, &s.Identifier, &s.Name, &s.LogoURL, &s.LastFetchedAt, &s.NextPollAt, &health, &s.ConsecutiveFailures, &s.ConsecutiveEmptyPolls, &staleAfterSeconds, &s.FailureReason, &s.CreatedAt, &s.DeletedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.AdapterID, &s.Identifier, &s.Name, &s.LogoURL, &s.LastFetchedAt, &s.NextPollAt, &health, &s.ConsecutiveFailures, &s.ConsecutiveEmptyPolls, &staleAfterSeconds, &s.FailureReason, &s.CreatedAt, &s.DeletedAt, &s.Paused); err != nil {
 			return nil, err
 		}
 		s.Health = model.SourceHealth(health)

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -47,14 +48,14 @@ func (h *ContentHandler) Get(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "content not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
 	var sourceName, sourceAdapterID string
 	sources, err := dbo.GetSourcesByIDs(ctx, h.App.Pool, []string{content.SourceID})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	if len(sources) == 1 {
@@ -81,17 +82,17 @@ func (h *ContentHandler) Comments(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "content not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
 	sources, err := dbo.GetSourcesByIDs(ctx, h.App.Pool, []string{content.SourceID})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	if len(sources) != 1 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "source not found for content"})
+		internalError(c, fmt.Errorf("source not found for content %s", content.ID))
 		return
 	}
 
@@ -117,7 +118,7 @@ func (h *ContentHandler) Comments(c *gin.Context) {
 			c.JSON(http.StatusGatewayTimeout, gin.H{"error": "comments are unavailable right now — try again shortly"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 

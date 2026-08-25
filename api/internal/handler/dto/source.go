@@ -49,6 +49,7 @@ type SourceResponse struct {
 	LastFetchedAt       *time.Time `json:"last_fetched_at,omitempty"`
 	NextPollAt          time.Time  `json:"next_poll_at"`
 	CreatedAt           time.Time  `json:"created_at"`
+	Paused              bool       `json:"paused"`
 }
 
 func FromSource(s model.Source) SourceResponse {
@@ -64,5 +65,6 @@ func FromSource(s model.Source) SourceResponse {
 		LastFetchedAt:       s.LastFetchedAt,
 		NextPollAt:          s.NextPollAt,
 		CreatedAt:           s.CreatedAt,
+		Paused:              s.Paused,
 	}
 }

@@ -87,3 +87,12 @@ func DeleteSource(ctx context.Context, app *app.Context, id string) error {
 	}
 	return nil
 }
+
+// PauseSource / UnpauseSource: see docs/pause-source-group/design.md §4.
+func PauseSource(ctx context.Context, app *app.Context, id string) error {
+	return dbo.PauseSource(ctx, app.Pool, id)
+}
+
+func UnpauseSource(ctx context.Context, app *app.Context, id string) error {
+	return dbo.UnpauseSource(ctx, app.Pool, id)
+}

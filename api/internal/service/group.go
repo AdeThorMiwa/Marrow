@@ -16,6 +16,7 @@ import (
 // docs/source-groups/design.md §4.
 var ErrDefaultGroupImmutable = errors.New("the default group cannot be renamed or deleted")
 var ErrCannotRemoveFromDefaultGroup = errors.New("a source cannot be removed from the default group individually")
+var ErrCannotPauseDefaultGroup = errors.New("the default group cannot be paused")
 
 func CreateGroup(ctx context.Context, app *app.Context, name, icon string) (model.Group, error) {
 	g := model.Group{ID: uuid.NewString(), Name: name, Icon: icon, CreatedAt: time.Now()}
@@ -53,4 +54,16 @@ func RemoveSourceFromGroup(ctx context.Context, app *app.Context, sourceID, grou
 		return ErrCannotRemoveFromDefaultGroup
 	}
 	return dbo.RemoveSourceFromGroup(ctx, app.Pool, sourceID, groupID)
+}
+
+// PauseGroup / UnpauseGroup: see docs/pause-source-group/design.md §4.
+func PauseGroup(ctx context.Context, app *app.Context, id string) error {
+	if id == model.DefaultGroupID {
+		return ErrCannotPauseDefaultGroup
+	}
+	return dbo.PauseGroup(ctx, app.Pool, id)
+}
+
+func UnpauseGroup(ctx context.Context, app *app.Context, id string) error {
+	return dbo.UnpauseGroup(ctx, app.Pool, id)
 }

@@ -65,6 +65,8 @@ type Source struct {
 	// Content still needs to resolve its Source's Name/AdapterID for
 	// display).
 	DeletedAt *time.Time
+	// Paused: see docs/pause-source-group/design.md §1, §3.
+	Paused bool
 }
 
 func (s Source) ToSourceConfig() SourceConfig {

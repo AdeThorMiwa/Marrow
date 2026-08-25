@@ -30,7 +30,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 
 	g, err := services.CreateGroup(c.Request.Context(), h.App, req.Name, req.Icon)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -41,7 +41,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 func (h *GroupHandler) List(c *gin.Context) {
 	groups, err := dbo.ListGroups(c.Request.Context(), h.App.Pool)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (h *GroupHandler) Delete(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -97,7 +97,7 @@ func (h *GroupHandler) AddSourceToGroup(c *gin.Context) {
 	}
 
 	if err := services.AddSourceToGroup(c.Request.Context(), h.App, c.Param("id"), req.GroupID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *GroupHandler) RemoveSourceFromGroup(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *GroupHandler) RemoveSourceFromGroup(c *gin.Context) {
 func (h *GroupHandler) ListGroupsForSource(c *gin.Context) {
 	groups, err := dbo.ListGroupsForSource(c.Request.Context(), h.App.Pool, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
@@ -134,11 +134,32 @@ func (h *GroupHandler) ListGroupsForSource(c *gin.Context) {
 	c.JSON(http.StatusOK, responses)
 }
 
+// Pause / Unpause: see docs/pause-source-group/design.md §5.
+func (h *GroupHandler) Pause(c *gin.Context) {
+	if err := services.PauseGroup(c.Request.Context(), h.App, c.Param("id")); err != nil {
+		if errors.Is(err, services.ErrCannotPauseDefaultGroup) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		internalError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *GroupHandler) Unpause(c *gin.Context) {
+	if err := services.UnpauseGroup(c.Request.Context(), h.App, c.Param("id")); err != nil {
+		internalError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // ListSourcesForGroup handles GET /groups/:id/sources.
 func (h *GroupHandler) ListSourcesForGroup(c *gin.Context) {
 	sources, err := dbo.ListSourcesForGroup(c.Request.Context(), h.App.Pool, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 
