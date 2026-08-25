@@ -78,20 +78,22 @@ export default function HomeScreen() {
   const columnBorderWidth = isDesktop ? theme.hairlineWidth : 0;
 
   const [sources, setSources] = useState<Source[]>([]);
-  useEffect(() => {
-    let ignore = false;
-    listSources()
-      .then((data) => {
-        if (!ignore) setSources(data);
-      })
-      .catch(() => {
-        // The rail just stays empty (plus the "add source" button) — not
-        // worth a whole-screen error for a secondary element.
-      });
-    return () => {
-      ignore = true;
-    };
+  const loadSources = useCallback(async () => {
+    try {
+      setSources(await listSources());
+    } catch {
+      // The rail just stays empty (plus the "add source" button) — not
+      // worth a whole-screen error for a secondary element.
+    }
   }, []);
+  useEffect(() => {
+    loadSources();
+  }, [loadSources]);
+
+  // Bumped by pull-to-refresh so the source rail (sources + groups) refetches
+  // alongside the feed — otherwise a rail that failed to load on mount (e.g.
+  // a transient backend error) stays blank forever with no retry trigger.
+  const [railRefreshSignal, setRailRefreshSignal] = useState(0);
 
   const [items, setItems] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -225,9 +227,10 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFirstPage();
+    setRailRefreshSignal((prev) => prev + 1);
+    await Promise.all([loadFirstPage(), loadSources()]);
     setRefreshing(false);
-  }, [loadFirstPage]);
+  }, [loadFirstPage, loadSources]);
 
   const onEndReached = useCallback(async () => {
     if (!cursor || loadingMore) return;
@@ -274,6 +277,7 @@ export default function HomeScreen() {
             }
             selection={selection}
             onToggle={(kind, id) => setSelection((prev) => toggleFilterItem(prev, kind, id))}
+            refreshSignal={railRefreshSignal}
           />
           <View style={{ height: theme.hairlineWidth, backgroundColor: theme.colors.divider }} />
 
@@ -504,6 +508,7 @@ function SourceRail({
   onSourcePausedChanged,
   selection,
   onToggle,
+  refreshSignal,
 }: {
   sources: Source[];
   horizontalInset: number;
@@ -511,6 +516,7 @@ function SourceRail({
   onSourcePausedChanged: (id: string, paused: boolean) => void;
   selection: FilterSelection;
   onToggle: (kind: 'source' | 'group', id: string) => void;
+  refreshSignal: number;
 }) {
   const theme = useTheme();
   const [menuSource, setMenuSource] = useState<Source | null>(null);
@@ -535,7 +541,7 @@ function SourceRail({
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [refreshSignal]);
 
   const handleDelete = useCallback(async () => {
     if (!confirmSource) return;
