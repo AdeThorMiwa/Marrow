@@ -76,7 +76,7 @@ npm run web
 ### Docker (backend, one command)
 
 ```bash
-./scripts/bootstrap.sh
+./scripts/start.sh
 ```
 
 Brings up Postgres, Ollama, and the API (with hot reload) in Docker. See

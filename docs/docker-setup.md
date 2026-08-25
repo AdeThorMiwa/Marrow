@@ -5,7 +5,7 @@ Brings up the whole backend stack — Postgres, Ollama, and the Go API
 
 Compose files live in `api/` (`api/docker-compose.yml`,
 `api/docker-compose.override.yml`, `api/docker-compose.whisper.yml`) —
-`scripts/bootstrap.sh` and `scripts/stop.sh` `cd` there for you, so you
+`scripts/start.sh` and `scripts/stop.sh` `cd` there for you, so you
 never need to reference those paths directly unless running `docker
 compose` by hand.
 
@@ -23,7 +23,7 @@ compose` by hand.
 ## Quick start
 
 ```bash
-./scripts/bootstrap.sh
+./scripts/start.sh
 ```
 
 This checks your `api/.env`, detects whether a native `whisper-server` is
@@ -75,7 +75,7 @@ cd api && docker compose up
 
 ## Manually using the Dockerized whisper fallback
 
-`./scripts/bootstrap.sh` does this automatically when no native
+`./scripts/start.sh` does this automatically when no native
 `whisper-server` is found. To force it by hand:
 
 ```bash
