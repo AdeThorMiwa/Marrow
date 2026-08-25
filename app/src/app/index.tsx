@@ -409,27 +409,52 @@ function ContentRow({
   const theme = useTheme();
   const daysAgo = daysAgoLabel(payload.published_at);
 
-  const content = (
-    <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.md, gap: theme.spacing.xs }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between',  gap: theme.spacing.xs }}>
-        <Text variant="caption" tone="secondary">
-          @{payload.source_name}
-          {daysAgo ? ` • ${daysAgo}` : ''}
-        </Text>
-        <SourceLogo adapterId={payload.source_adapter_id} size={20} />
-      </View>
-      {payload.title ? <Text variant="itemTitle">{payload.title}</Text> : null}
-      <ContentMedia type={type} blocks={payload.blocks} isVisible={isVisible} />
-      {payload.summary ? <Markdown size="small">{payload.summary}</Markdown> : null}
+  const header = (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.xs }}>
+      <Text variant="caption" tone="secondary">
+        @{payload.source_name}
+        {daysAgo ? ` • ${daysAgo}` : ''}
+      </Text>
+      <SourceLogo adapterId={payload.source_adapter_id} size={20} />
     </View>
   );
+  const title = payload.title ? <Text variant="itemTitle">{payload.title}</Text> : null;
+  const media = <ContentMedia type={type} blocks={payload.blocks} isVisible={isVisible} />;
+  const summary = payload.summary ? <Markdown size="small">{payload.summary}</Markdown> : null;
 
   // Server-computed (Content Detail Requirement 3.3) — a card with nothing
   // further to reveal gets no press affordance at all, not just a disabled
   // one.
-  if (!payload.detailable) return content;
+  if (!payload.detailable) {
+    return (
+      <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.md, gap: theme.spacing.xs }}>
+        {header}
+        {title}
+        {media}
+        {summary}
+      </View>
+    );
+  }
 
-  return <Pressable onPress={() => router.push(`/content/${payload.content_id}`)}>{content}</Pressable>;
+  // media sits between two Pressables, as a sibling rather than a wrapped
+  // descendant — not swallowed-and-blocked inside one. A no-op inner
+  // Pressable used to wrap the video to stop the tap from bubbling to a
+  // single outer Pressable, but that claimed the touch responder before it
+  // could reach the embedded YouTube WebView/iframe's own play button,
+  // breaking the first tap. Splitting the Pressable around media instead of
+  // wrapping it entirely sidesteps that: media's own taps never enter a
+  // Pressable at all, so there's nothing to swallow.
+  const navigate = () => router.push(`/content/${payload.content_id}`);
+  return (
+    <View style={{ paddingHorizontal: horizontalInset, paddingVertical: theme.spacing.md, gap: theme.spacing.xs }}>
+      <Pressable onPress={navigate}>
+        {header}
+        {title}
+      </Pressable>
+      {media}
+      {summary ? <Pressable onPress={navigate}>{summary}</Pressable> : null}
+    </View>
+  );
 }
 
 // The one media slot per card — video wins over audio wins over the first
@@ -448,16 +473,7 @@ function ContentMedia({
   if (type === 'video') {
     const block = blocks.find((b) => b.kind === 'video');
     const youtubeVideoId = block ? getYoutubeVideoId(block) : undefined;
-    if (youtubeVideoId)
-      return (
-        // No-op Pressable claims the responder for taps on the video so
-        // they don't bubble to the card's outer Pressable (which would
-        // navigate to Content Detail instead of letting YouTube's own
-        // play/pause interaction happen).
-        <Pressable onPress={() => {}}>
-          <YouTubeEmbed videoId={youtubeVideoId} isVisible={isVisible} />
-        </Pressable>
-      );
+    if (youtubeVideoId) return <YouTubeEmbed videoId={youtubeVideoId} isVisible={isVisible} />;
 
     const uri = block ? getPlayableUrl(block) : undefined;
     if (uri) return <VideoPlayer uri={uri} isVisible={isVisible} />;
