@@ -55,8 +55,9 @@ type EnrichmentConfig struct {
 }
 
 type FeedConfig struct {
-	DefaultPageSize int `mapstructure:"default_page_size"`
-	OverfetchFactor int `mapstructure:"overfetch_factor"`
+	DefaultPageSize      int `mapstructure:"default_page_size"`
+	OverfetchFactor      int `mapstructure:"overfetch_factor"`
+	MaxSameSourcePerPage int `mapstructure:"max_same_source_per_page"`
 }
 
 // TwitterConfig holds the real account credentials the Twitter adapter

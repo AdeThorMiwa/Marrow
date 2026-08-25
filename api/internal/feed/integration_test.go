@@ -191,6 +191,51 @@ func TestContentFeedSource_SameHourCreatedAtTiesDespiteRaceyDifferences(t *testi
 	}
 }
 
+// TestContentFeedSource_DiversityCap_BurstSourceCappedThenResumesNextPage
+// exercises the real end-to-end pagination path (not just applyDiversityCap
+// in isolation): a burst source is capped mid-page, and the very next page
+// — using the returned cursor — resumes exactly where the cap stopped, with
+// no gap and no duplicate. See docs/feed-source-diversity/design.md.
+func TestContentFeedSource_DiversityCap_BurstSourceCappedThenResumesNextPage(t *testing.T) {
+	pool := testutil.ConnectDB(t)
+	cfg := testConfig
+	cfg.Feed.MaxSameSourcePerPage = 2
+	a := &app.Context{Pool: pool, Config: &cfg}
+
+	burst := testutil.SeedSource(t, pool, "src-burst")
+	quiet := testutil.SeedSource(t, pool, "src-quiet")
+
+	now := time.Now()
+	b1 := seedReadyContent(t, a, burst.ID, now, now)
+	b2 := seedReadyContent(t, a, burst.ID, now.Add(-1*time.Hour), now.Add(-1*time.Hour))
+	b3 := seedReadyContent(t, a, burst.ID, now.Add(-2*time.Hour), now.Add(-2*time.Hour))
+	q1 := seedReadyContent(t, a, quiet.ID, now.Add(-3*time.Hour), now.Add(-3*time.Hour))
+
+	s := &feed.ContentFeedSource{}
+
+	page1, cursor1, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetLimit(10).Build())
+	if err != nil {
+		t.Fatalf("page 1 failed: %v", err)
+	}
+	if len(page1) != 2 {
+		t.Fatalf("expected page 1 capped at 2 (MaxSameSourcePerPage), got %d items: %+v", len(page1), page1)
+	}
+	if page1[0].Payload.(feed.ContentPayload).ContentID != b1.ID || page1[1].Payload.(feed.ContentPayload).ContentID != b2.ID {
+		t.Fatalf("expected page 1 to be [b1, b2], got %+v", page1)
+	}
+
+	page2, _, err := s.Produce(context.Background(), a, feed.NewAssemblyQueryBuilder().SetCursor(cursor1).SetLimit(10).Build())
+	if err != nil {
+		t.Fatalf("page 2 failed: %v", err)
+	}
+	if len(page2) != 2 {
+		t.Fatalf("expected page 2 to resume with the 2 remaining items, got %d: %+v", len(page2), page2)
+	}
+	if page2[0].Payload.(feed.ContentPayload).ContentID != b3.ID || page2[1].Payload.(feed.ContentPayload).ContentID != q1.ID {
+		t.Fatalf("expected page 2 to be [b3, q1] with no gap or duplicate, got %+v", page2)
+	}
+}
+
 func TestSourceHealthFeedSource_AnchorsToLastItemFromStaleSource(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	a := &app.Context{Pool: pool, Config: &testConfig}

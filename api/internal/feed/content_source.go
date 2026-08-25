@@ -65,10 +65,7 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, query
 	// correct order (CreatedAt DESC, PublishedAt DESC, id DESC) — overfetch
 	// exists so a future ranking term (e.g. Rabbithole similarity) has room
 	// to reorder before this trim, not because this step needs to sort.
-	ranked := candidates
-	if len(ranked) > query.Limit() {
-		ranked = ranked[:query.Limit()]
-	}
+	ranked := applyDiversityCap(candidates, query.Limit(), app.Config.Feed.MaxSameSourcePerPage)
 
 	items := make([]FeedItem, len(ranked))
 	for i, c := range ranked {
@@ -83,6 +80,43 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, query
 	next := &Cursor{CreatedAt: last.CreatedAt.UTC().Truncate(time.Hour), PublishedAt: last.PublishedAt, ContentID: last.ID}
 
 	return items, next, nil
+}
+
+// applyDiversityCap returns the longest prefix of candidates (already
+// chronologically sorted) such that no single source contributes more than
+// cap items, capped at limit. Must be a strict prefix, not a
+// skip-and-continue filter: the feed's pagination cursor is a single
+// (created_at, published_at, id) tuple, so a page's items have to be a
+// contiguous run of the candidate order — skipping an over-cap item while
+// still including later ones would either re-show those later items on the
+// next page (the cursor would still be positioned before them) or lose the
+// skipped item permanently (positioned after it). Stopping the whole page at
+// the first violation keeps the cursor correct for free: everything from
+// that point on, including other sources' items right after it, naturally
+// rolls to the next page. See docs/feed-source-diversity/design.md.
+//
+// cap <= 0 disables the cap entirely (plain trim to limit).
+func applyDiversityCap(candidates []model.Content, limit, cap int) []model.Content {
+	if cap <= 0 {
+		if len(candidates) > limit {
+			return candidates[:limit]
+		}
+		return candidates
+	}
+
+	counts := map[string]int{}
+	out := make([]model.Content, 0, limit)
+	for _, c := range candidates {
+		if len(out) >= limit {
+			break
+		}
+		if counts[c.SourceID] >= cap {
+			break
+		}
+		counts[c.SourceID]++
+		out = append(out, c)
+	}
+	return out
 }
 
 // dominantType picks FeedItem.Type from a Content's blocks — video wins over

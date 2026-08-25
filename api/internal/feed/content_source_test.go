@@ -128,3 +128,75 @@ func TestSummaryFor_NoDescriptionNoTextBlock_ReturnsNil(t *testing.T) {
 	}
 }
 
+func candidatesFromSourceIDs(sourceIDs ...string) []model.Content {
+	out := make([]model.Content, len(sourceIDs))
+	for i, id := range sourceIDs {
+		out[i] = model.Content{ID: string(rune('a' + i)), SourceID: id}
+	}
+	return out
+}
+
+func sourceIDsOf(items []model.Content) []string {
+	out := make([]string, len(items))
+	for i, c := range items {
+		out[i] = c.SourceID
+	}
+	return out
+}
+
+// TestApplyDiversityCap_BurstStopsAtCap locks in the "hard-stop prefix"
+// design: a burst source is capped, and everything after the cap violation
+// — even a different source's item sitting right after it — rolls to the
+// next page rather than being interleaved in. See
+// docs/feed-source-diversity/design.md for why a skip-and-continue filter
+// would break the pagination cursor.
+func TestApplyDiversityCap_BurstStopsAtCap(t *testing.T) {
+	candidates := candidatesFromSourceIDs("B", "B", "B", "B", "Q", "B")
+	got := applyDiversityCap(candidates, 20, 3)
+
+	want := []string{"B", "B", "B"}
+	if ids := sourceIDsOf(got); !equalStrings(ids, want) {
+		t.Errorf("got %v, want %v", ids, want)
+	}
+}
+
+func TestApplyDiversityCap_UnderCap_Unchanged(t *testing.T) {
+	candidates := candidatesFromSourceIDs("A", "B", "C", "A", "B")
+	got := applyDiversityCap(candidates, 20, 3)
+
+	want := []string{"A", "B", "C", "A", "B"}
+	if ids := sourceIDsOf(got); !equalStrings(ids, want) {
+		t.Errorf("got %v, want %v", ids, want)
+	}
+}
+
+func TestApplyDiversityCap_LimitStillApplies(t *testing.T) {
+	candidates := candidatesFromSourceIDs("A", "B", "C", "D", "E")
+	got := applyDiversityCap(candidates, 2, 3)
+
+	if len(got) != 2 {
+		t.Errorf("expected limit of 2 to still apply, got %d items", len(got))
+	}
+}
+
+func TestApplyDiversityCap_CapDisabled_PlainTrim(t *testing.T) {
+	candidates := candidatesFromSourceIDs("B", "B", "B", "B", "B")
+	got := applyDiversityCap(candidates, 3, 0)
+
+	if len(got) != 3 {
+		t.Errorf("expected cap<=0 to disable capping (plain trim to limit), got %d items", len(got))
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
