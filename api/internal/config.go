@@ -17,6 +17,7 @@ type Config struct {
 	Feed       FeedConfig       `mapstructure:"feed"`
 	Twitter    TwitterConfig    `mapstructure:"twitter"`
 	Instagram  InstagramConfig  `mapstructure:"instagram"`
+	Redis      RedisConfig      `mapstructure:"redis"`
 }
 
 type ServerConfig struct {
@@ -40,7 +41,6 @@ type IngestConfig struct {
 	StaleThreshold    int    `mapstructure:"stale_threshold"`    // consecutive empty (reachable, 0 items) polls before Health = stale
 	RetryBackoffBase  string `mapstructure:"retry_backoff_base"` // exponential backoff base for both failure counters
 	BrokenBackoffMax  string `mapstructure:"broken_backoff_max"` // cap for the unreachable path only — stale uses each Source's own StaleAfter instead
-	QueueBufferSize   int    `mapstructure:"queue_buffer_size"`
 	QueueWorkers      int    `mapstructure:"queue_workers"`
 }
 
@@ -48,7 +48,6 @@ type EnrichmentConfig struct {
 	OllamaBaseURL    string `mapstructure:"ollama_base_url"`
 	EmbeddingModel   string `mapstructure:"embedding_model"`
 	WhisperBaseURL   string `mapstructure:"whisper_base_url"`
-	QueueBufferSize  int    `mapstructure:"queue_buffer_size"`
 	QueueWorkers     int    `mapstructure:"queue_workers"`
 	RetryMaxAttempts int    `mapstructure:"retry_max_attempts"`
 	RetryBackoffBase string `mapstructure:"retry_backoff_base"`
@@ -88,6 +87,12 @@ type TwitterAccount struct {
 type InstagramConfig struct {
 	Username string `mapstructure:"username"`
 	Cookies  string `mapstructure:"cookies"`
+}
+
+// RedisConfig backs internal/queue's AsynqBroker — see
+// docs/durable-queue/design.md.
+type RedisConfig struct {
+	Addr string `mapstructure:"addr"`
 }
 
 func Load() (*Config, error) {

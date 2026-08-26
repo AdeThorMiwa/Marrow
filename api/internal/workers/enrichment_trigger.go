@@ -19,11 +19,11 @@ type EnrichmentJobPayload struct {
 // RegisterEnrichmentTrigger subscribes to ContentIngested and enqueues one
 // enrichment job per event. This is Enrichment's only input — it never
 // calls Discover, never touches Source.
-func RegisterEnrichmentTrigger(app *app.Context, q queue.Queue[EnrichmentJobPayload], retry queue.RetryPolicy[EnrichmentJobPayload]) {
+func RegisterEnrichmentTrigger(app *app.Context, p queue.Producer[EnrichmentJobPayload]) {
 	// *api.AppContext here, not *app.Context — the app parameter above
 	// already shadows the app package name for the rest of this function
 	// body (same underlying type either way).
 	pubsub.Subscribe(app, func(ctx context.Context, a *api.AppContext, e events.ContentIngested) error {
-		return q.Enqueue(ctx, EnrichmentJobPayload{ContentID: e.ContentID}, queue.WithRetry(retry))
+		return p.Enqueue(ctx, EnrichmentJobPayload{ContentID: e.ContentID})
 	})
 }

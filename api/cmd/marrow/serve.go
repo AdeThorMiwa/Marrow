@@ -57,13 +57,15 @@ func serve(c *lib.Config) error {
 		registry.Register(adapter.NewInstagramAdapter(c.Instagram))
 	}
 
-	ingestQueue := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{
-		BufferSize:   c.Ingest.QueueBufferSize,
-		DefaultRetry: queue.NoRetry[workers.IngestJobPayload](),
-	})
+	ingestQueue := queue.NewAsynqBroker[workers.IngestJobPayload](
+		c.Redis.Addr, "ingest", c.Ingest.QueueWorkers, queue.NoRetry[workers.IngestJobPayload](),
+	)
+	defer ingestQueue.Shutdown(ctx)
 
-	ingestWorker := workers.NewIngestWorker(ingestQueue)
-	ingestWorker.Start(ctx, appCtx, c.Ingest.QueueWorkers)
+	ingestWorker := workers.NewIngestWorker()
+	if err := ingestQueue.Start(ctx, appCtx, ingestWorker.ProcessJob); err != nil {
+		return fmt.Errorf("failed to start ingest queue: %w", err)
+	}
 
 	discoveryTask, err := tasks.NewIngestDiscoveryTask(appCtx, ingestQueue, c.Ingest)
 	if err != nil {
@@ -77,9 +79,11 @@ func serve(c *lib.Config) error {
 	sched.Start()
 	defer sched.Stop()
 
-	if err := startEnrichment(ctx, appCtx, c); err != nil {
+	enrichmentQueue, err := startEnrichment(ctx, appCtx, c)
+	if err != nil {
 		return fmt.Errorf("failed to start enrichment: %w", err)
 	}
+	defer enrichmentQueue.Shutdown(ctx)
 
 	ginEngine := gin.Default()
 	if err := ginEngine.SetTrustedProxies([]string{}); err != nil {
@@ -93,32 +97,45 @@ func serve(c *lib.Config) error {
 
 // startEnrichment wires the Enrichment worker, its queue, and its
 // ContentIngested trigger. Unlike Ingest (which self-heals via the next
-// scheduler tick), Enrichment has no natural re-trigger, so its queue's
-// retry policy carries an OnExhausted hook — see EnrichmentWorker.OnExhausted.
-func startEnrichment(ctx context.Context, appCtx *app.Context, c *lib.Config) error {
+// scheduler tick), Enrichment has no natural re-trigger from a live event
+// alone, so its queue's retry policy carries an OnExhausted hook (see
+// EnrichmentWorker.OnExhausted) and every boot also reconciles any Content
+// already in the DB with no matching EnrichedContent row — see
+// docs/durable-queue/design.md Requirement 2. Returns the broker so the
+// caller can Shutdown it on process exit.
+func startEnrichment(ctx context.Context, appCtx *app.Context, c *lib.Config) (*queue.AsynqBroker[workers.EnrichmentJobPayload], error) {
 	backoffBase, err := time.ParseDuration(c.Enrichment.RetryBackoffBase)
 	if err != nil {
-		return fmt.Errorf("invalid enrichment.retry_backoff_base: %w", err)
+		return nil, fmt.Errorf("invalid enrichment.retry_backoff_base: %w", err)
 	}
 
-	enrichmentQueue := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{
-		BufferSize: c.Enrichment.QueueBufferSize,
-	})
-
 	enrichmentWorker := workers.NewEnrichmentWorker(
-		enrichmentQueue,
 		adapter.NewTranscriber(c.Enrichment.WhisperBaseURL),
 		adapter.NewOllamaEmbedder(c.Enrichment.OllamaBaseURL),
 		api.EmbeddingModel(c.Enrichment.EmbeddingModel),
 	)
-	enrichmentWorker.Start(ctx, appCtx, c.Enrichment.QueueWorkers)
 
 	retry := queue.RetryPolicy[workers.EnrichmentJobPayload]{
 		MaxAttempts: c.Enrichment.RetryMaxAttempts,
 		Backoff:     queue.ExponentialBackoff(backoffBase),
 		OnExhausted: enrichmentWorker.OnExhausted,
 	}
-	workers.RegisterEnrichmentTrigger(appCtx, enrichmentQueue, retry)
+	enrichmentQueue := queue.NewAsynqBroker[workers.EnrichmentJobPayload](
+		c.Redis.Addr, "enrichment", c.Enrichment.QueueWorkers, retry,
+	)
+	if err := enrichmentQueue.Start(ctx, appCtx, enrichmentWorker.ProcessJob); err != nil {
+		return nil, fmt.Errorf("failed to start enrichment queue: %w", err)
+	}
 
-	return nil
+	workers.RegisterEnrichmentTrigger(appCtx, enrichmentQueue)
+
+	reconciled, err := workers.ReconcileEnrichment(ctx, appCtx, enrichmentQueue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconcile unenriched content: %w", err)
+	}
+	if reconciled > 0 {
+		log.Printf("enrichment: reconciled %d unenriched content row(s) on startup", reconciled)
+	}
+
+	return enrichmentQueue, nil
 }

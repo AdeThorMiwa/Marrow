@@ -10,7 +10,6 @@ import (
 	"marrow/internal/events"
 	model "marrow/internal/model"
 	"marrow/internal/pubsub"
-	"marrow/internal/queue"
 	"marrow/internal/testutil"
 	"marrow/internal/workers"
 
@@ -23,11 +22,10 @@ import (
 // EnrichmentWorker against real local infra (whisper-server on :8090,
 // Ollama on :11434) and returns the persisted EnrichedContent's text and
 // embedding dimension for the caller to assert on.
-func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model.Source, raw model.RawContent, jobIDPrefix string) (text string, dim int, transcriptModel *string) {
+func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model.Source, raw model.RawContent) (text string, dim int, transcriptModel *string) {
 	t.Helper()
 
-	ingestQueue := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 1})
-	ingestWorker := workers.NewIngestWorker(ingestQueue)
+	ingestWorker := workers.NewIngestWorker()
 
 	ingested := make(chan events.ContentIngested, 1)
 	pubsub.Subscribe(a, func(ctx context.Context, app *app.Context, e events.ContentIngested) error {
@@ -35,11 +33,8 @@ func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model
 		return nil
 	})
 
-	ingestJob := queue.Job[workers.IngestJobPayload]{
-		ID: jobIDPrefix + "-ingest", Attempt: 1, EnqueuedAt: time.Now(),
-		Payload: workers.IngestJobPayload{Source: src, Raw: raw},
-	}
-	if err := ingestWorker.ProcessJob(context.Background(), a, ingestJob); err != nil {
+	ingestPayload := workers.IngestJobPayload{Source: src, Raw: raw}
+	if err := ingestWorker.ProcessJob(context.Background(), a, ingestPayload); err != nil {
 		t.Fatalf("IngestWorker.ProcessJob failed: %v", err)
 	}
 
@@ -51,9 +46,7 @@ func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model
 		t.Fatal("timed out waiting for ContentIngested")
 	}
 
-	enrichmentQueue := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
 	enrichmentWorker := workers.NewEnrichmentWorker(
-		enrichmentQueue,
 		adapter.NewWhisperCppTranscriber("http://localhost:8090"),
 		adapter.NewOllamaEmbedder("http://localhost:11434"),
 		api.EmbeddingModel("nomic-embed-text"),
@@ -65,11 +58,8 @@ func runFullPipeline(t *testing.T, pool *pgxpool.Pool, a *app.Context, src model
 		return nil
 	})
 
-	enrichJob := queue.Job[workers.EnrichmentJobPayload]{
-		ID: jobIDPrefix + "-enrich", Attempt: 1, EnqueuedAt: time.Now(),
-		Payload: workers.EnrichmentJobPayload{ContentID: contentID},
-	}
-	if err := enrichmentWorker.ProcessJob(context.Background(), a, enrichJob); err != nil {
+	enrichPayload := workers.EnrichmentJobPayload{ContentID: contentID}
+	if err := enrichmentWorker.ProcessJob(context.Background(), a, enrichPayload); err != nil {
 		t.Fatalf("EnrichmentWorker.ProcessJob failed: %v", err)
 	}
 
@@ -124,7 +114,7 @@ func TestFullPipeline_RealAudioSource_EndToEnd(t *testing.T) {
 	// Real transcription of a ~10-15 min NPR episode on local whisper.cpp
 	// takes real wall-clock time — this is a one-time full-pipeline
 	// verification, not a fast unit test.
-	text, dim, transcriptModel := runFullPipeline(t, pool, a, src, raw, "e2e-audio")
+	text, dim, transcriptModel := runFullPipeline(t, pool, a, src, raw)
 
 	if text == "" {
 		t.Error("expected non-empty transcribed text")
@@ -182,7 +172,7 @@ func TestFullPipeline_RealVideoSource_EndToEnd(t *testing.T) {
 		t.Skip("the small announcement clip used for this test wasn't found in the current feed window — feed contents may have changed")
 	}
 
-	text, dim, transcriptModel := runFullPipeline(t, pool, a, src, raw, "e2e-video")
+	text, dim, transcriptModel := runFullPipeline(t, pool, a, src, raw)
 
 	if text == "" {
 		t.Error("expected non-empty transcribed text")

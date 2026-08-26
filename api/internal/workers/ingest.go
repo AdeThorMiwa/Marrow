@@ -11,7 +11,6 @@ import (
 	"marrow/internal/events"
 	model "marrow/internal/model"
 	"marrow/internal/pubsub"
-	"marrow/internal/queue"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -24,30 +23,20 @@ type IngestJobPayload struct {
 	Raw    model.RawContent
 }
 
-// IngestWorker holds the queue it drives and the handler logic for turning
-// a discovered item into a persisted Content: dedup by URL, persist
-// Content + its ContentBlocks + authors in one transaction, then publish
-// ContentIngested only after commit. DB pool and event bus come from
-// *app.Context, passed explicitly on each call rather than stored here.
-type IngestWorker struct {
-	Queue queue.Queue[IngestJobPayload]
-}
+// IngestWorker holds the handler logic for turning a discovered item into
+// a persisted Content: dedup by URL, persist Content + its ContentBlocks +
+// authors in one transaction, then publish ContentIngested only after
+// commit. DB pool and event bus come from *app.Context, passed explicitly
+// on each call rather than stored here.
+type IngestWorker struct{}
 
-func NewIngestWorker(q queue.Queue[IngestJobPayload]) *IngestWorker {
-	return &IngestWorker{Queue: q}
-}
-
-// Start wires this worker's ProcessJob handler up to the queue via the
-// generic queue.Worker runner, with the given concurrency.
-func (w *IngestWorker) Start(ctx context.Context, app *app.Context, concurrency int) {
-	queue.NewWorker(app, w.Queue, concurrency, w.ProcessJob).Start(ctx)
+func NewIngestWorker() *IngestWorker {
+	return &IngestWorker{}
 }
 
 // ProcessJob is the queue handler. Duplicates are dropped silently — no
 // error, no event.
-func (w *IngestWorker) ProcessJob(ctx context.Context, app *app.Context, job queue.Job[IngestJobPayload]) error {
-	payload := job.Payload
-
+func (w *IngestWorker) ProcessJob(ctx context.Context, app *app.Context, payload IngestJobPayload) error {
 	exists, err := dbo.ExistsContentByURL(ctx, app.Pool, payload.Raw.URL)
 	if err != nil {
 		return err

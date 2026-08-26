@@ -12,7 +12,6 @@ import (
 	"marrow/internal/events"
 	model "marrow/internal/model"
 	"marrow/internal/pubsub"
-	"marrow/internal/queue"
 	"marrow/internal/testutil"
 	"marrow/internal/workers"
 
@@ -38,10 +37,6 @@ type failingTranscriber struct{ t *testing.T }
 func (f *failingTranscriber) Transcribe(ctx context.Context, media model.Media) (*api.TranscriptionResponse, error) {
 	f.t.Fatal("Transcriber.Transcribe should not be called for a text-only Content")
 	return nil, nil
-}
-
-func newEnrichmentJob(payload workers.EnrichmentJobPayload) queue.Job[workers.EnrichmentJobPayload] {
-	return queue.Job[workers.EnrichmentJobPayload]{ID: "job-1", Payload: payload, Attempt: 1, EnqueuedAt: time.Now()}
 }
 
 // seedContent inserts a Content and its blocks, same shape IngestWorker
@@ -83,10 +78,9 @@ func TestEnrichmentWorker_SingleTextBlock_ResolvesDirectlyAndPersists(t *testing
 		return nil
 	})
 
-	q := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
-	w := workers.NewEnrichmentWorker(q, transcriber, embedder, api.EmbeddingModel("nomic-embed-text"))
+	w := workers.NewEnrichmentWorker(transcriber, embedder, api.EmbeddingModel("nomic-embed-text"))
 
-	if err := w.ProcessJob(context.Background(), a, newEnrichmentJob(workers.EnrichmentJobPayload{ContentID: content.ID})); err != nil {
+	if err := w.ProcessJob(context.Background(), a, workers.EnrichmentJobPayload{ContentID: content.ID}); err != nil {
 		t.Fatalf("ProcessJob failed: %v", err)
 	}
 
@@ -140,10 +134,9 @@ func TestEnrichmentWorker_MultiTextBlock_ConcatenatesInPositionOrder(t *testing.
 	})
 
 	embedder := &fakeEmbedder{vector: make([]float32, 768)}
-	q := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
-	w := workers.NewEnrichmentWorker(q, &failingTranscriber{t: t}, embedder, api.EmbeddingModel("nomic-embed-text"))
+	w := workers.NewEnrichmentWorker(&failingTranscriber{t: t}, embedder, api.EmbeddingModel("nomic-embed-text"))
 
-	if err := w.ProcessJob(context.Background(), a, newEnrichmentJob(workers.EnrichmentJobPayload{ContentID: content.ID})); err != nil {
+	if err := w.ProcessJob(context.Background(), a, workers.EnrichmentJobPayload{ContentID: content.ID}); err != nil {
 		t.Fatalf("ProcessJob failed: %v", err)
 	}
 
@@ -178,10 +171,9 @@ func TestEnrichmentWorker_MalformedBlockMediaRef_FailsWholeJob(t *testing.T) {
 	})
 
 	embedder := &fakeEmbedder{vector: make([]float32, 768)}
-	q := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
-	w := workers.NewEnrichmentWorker(q, &failingTranscriber{t: t}, embedder, api.EmbeddingModel("nomic-embed-text"))
+	w := workers.NewEnrichmentWorker(&failingTranscriber{t: t}, embedder, api.EmbeddingModel("nomic-embed-text"))
 
-	err := w.ProcessJob(context.Background(), a, newEnrichmentJob(workers.EnrichmentJobPayload{ContentID: content.ID}))
+	err := w.ProcessJob(context.Background(), a, workers.EnrichmentJobPayload{ContentID: content.ID})
 	if err == nil {
 		t.Fatal("expected ProcessJob to fail on a malformed block media_ref")
 	}
@@ -229,10 +221,9 @@ func TestEnrichmentWorker_AlreadyEnriched_SkipsReprocessing(t *testing.T) {
 		return nil
 	})
 
-	q := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
-	w := workers.NewEnrichmentWorker(q, transcriber, embedder, api.EmbeddingModel("nomic-embed-text"))
+	w := workers.NewEnrichmentWorker(transcriber, embedder, api.EmbeddingModel("nomic-embed-text"))
 
-	if err := w.ProcessJob(context.Background(), a, newEnrichmentJob(workers.EnrichmentJobPayload{ContentID: content.ID})); err != nil {
+	if err := w.ProcessJob(context.Background(), a, workers.EnrichmentJobPayload{ContentID: content.ID}); err != nil {
 		t.Fatalf("ProcessJob failed: %v", err)
 	}
 
@@ -258,11 +249,10 @@ func TestEnrichmentWorker_OnExhausted_PublishesContentEnrichmentFailed(t *testin
 		return nil
 	})
 
-	q := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
-	w := workers.NewEnrichmentWorker(q, &failingTranscriber{t: t}, &fakeEmbedder{}, api.EmbeddingModel("nomic-embed-text"))
+	w := workers.NewEnrichmentWorker(&failingTranscriber{t: t}, &fakeEmbedder{}, api.EmbeddingModel("nomic-embed-text"))
 
-	job := newEnrichmentJob(workers.EnrichmentJobPayload{ContentID: "content-x"})
-	w.OnExhausted(context.Background(), a, job, errTestErr("boom"))
+	payload := workers.EnrichmentJobPayload{ContentID: "content-x"}
+	w.OnExhausted(context.Background(), a, payload, errTestErr("boom"))
 
 	select {
 	case e := <-received:
@@ -303,10 +293,9 @@ func TestEnrichmentWorker_RealOllama_EndToEnd(t *testing.T) {
 		return nil
 	})
 
-	q := queue.NewInMemory[workers.EnrichmentJobPayload](queue.InMemoryOptions[workers.EnrichmentJobPayload]{BufferSize: 1})
-	w := workers.NewEnrichmentWorker(q, transcriber, embedder, api.EmbeddingModel("nomic-embed-text"))
+	w := workers.NewEnrichmentWorker(transcriber, embedder, api.EmbeddingModel("nomic-embed-text"))
 
-	if err := w.ProcessJob(context.Background(), a, newEnrichmentJob(workers.EnrichmentJobPayload{ContentID: content.ID})); err != nil {
+	if err := w.ProcessJob(context.Background(), a, workers.EnrichmentJobPayload{ContentID: content.ID}); err != nil {
 		t.Fatalf("ProcessJob failed: %v", err)
 	}
 

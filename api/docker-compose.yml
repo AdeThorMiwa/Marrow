@@ -18,6 +18,7 @@ services:
       APP_DATABASE_PASSWORD: postgres
       APP_DATABASE_NAME: marrow
       APP_DATABASE_SSL_MODE: disable
+      APP_REDIS_ADDR: redis:6379
       APP_ENRICHMENT_OLLAMA_BASE_URL: http://ollama:11434
       # Overridden to http://whisper:8090 by docker-compose.whisper.yml
       # when the containerized fallback is active.
@@ -35,6 +36,8 @@ services:
       postgres:
         condition: service_healthy
       ollama:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/feed || exit 1"]
@@ -73,7 +76,24 @@ services:
       retries: 20
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    # AOF persistence — without it, restarting the Redis *container*
+    # itself (not just marrow-api) would lose every queued/in-flight job,
+    # defeating the entire point of moving off the in-memory queue. See
+    # docs/durable-queue/design.md.
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   ollama_data:
   twscrape_data:
+  redis_data:

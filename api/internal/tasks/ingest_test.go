@@ -30,7 +30,20 @@ func TestIngestDiscoveryTask_Run_MarksHealthyOnSuccessAndEnqueuesItems(t *testin
 	pool := testutil.ConnectDB(t)
 	src := testutil.SeedSource(t, pool, "src-1") // real, reachable Substack feed
 
-	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 64})
+	q := queue.NewAsynqBroker[workers.IngestJobPayload](
+		testutil.RedisAddr, testutil.UniqueQueueName("ingest"), 1, queue.NoRetry[workers.IngestJobPayload](),
+	)
+	t.Cleanup(func() { q.Shutdown(context.Background()) })
+
+	received := make(chan workers.IngestJobPayload, 64)
+	err := q.Start(context.Background(), &app.Context{Pool: pool}, func(ctx context.Context, a *app.Context, payload workers.IngestJobPayload) error {
+		received <- payload
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("failed to start queue: %v", err)
+	}
+
 	task, err := tasks.NewIngestDiscoveryTask(&app.Context{Pool: pool}, q, testIngestConfig())
 	if err != nil {
 		t.Fatalf("NewIngestDiscoveryTask failed: %v", err)
@@ -51,10 +64,10 @@ func TestIngestDiscoveryTask_Run_MarksHealthyOnSuccessAndEnqueuesItems(t *testin
 		t.Errorf("expected next_poll_at to move into the future, got %s", updated.NextPollAt)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if _, err := q.Dequeue(ctx); err != nil {
-		t.Errorf("expected at least one item enqueued from a live feed, got dequeue error: %v", err)
+	select {
+	case <-received:
+	case <-time.After(5 * time.Second):
+		t.Error("expected at least one item enqueued from a live feed")
 	}
 }
 
@@ -62,7 +75,10 @@ func TestIngestDiscoveryTask_Run_StaysOKUntilBrokenThreshold(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	src := testutil.SeedSourceWith(t, pool, "src-unreachable", "substack", "https://this-domain-does-not-exist.marrow-test.invalid")
 
-	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 8})
+	q := queue.NewAsynqBroker[workers.IngestJobPayload](
+		testutil.RedisAddr, testutil.UniqueQueueName("ingest"), 1, queue.NoRetry[workers.IngestJobPayload](),
+	)
+	t.Cleanup(func() { q.Shutdown(context.Background()) })
 	task, err := tasks.NewIngestDiscoveryTask(&app.Context{Pool: pool}, q, testIngestConfig())
 	if err != nil {
 		t.Fatalf("NewIngestDiscoveryTask failed: %v", err)

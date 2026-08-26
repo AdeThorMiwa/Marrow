@@ -24,13 +24,12 @@ import (
 // for enqueued items.
 //
 // App is held as a field (rather than threaded through Run's signature)
-// because scheduler.Task.Run(ctx) is a fixed interface driven by cron, not
-// by queue.Worker — there's no handler-chain call site to thread it
-// through, so it's set once at construction like any other struct-bound
-// worker.
+// because scheduler.Task.Run(ctx) is a fixed interface driven by cron —
+// there's no handler-chain call site to thread it through, so it's set
+// once at construction like any other struct-bound worker.
 type IngestDiscoveryTask struct {
 	App               *app.Context
-	Queue             queue.Queue[workers.IngestJobPayload]
+	Queue             queue.Producer[workers.IngestJobPayload]
 	CronSpec          string
 	DefaultBatchLimit int
 	BrokenThreshold   int           // consecutive unreachable polls before Health = broken
@@ -44,7 +43,7 @@ type IngestDiscoveryTask struct {
 // up front, at construction, rather than leaving the caller to do it (and
 // rather than parsing them on every tick) — an invalid config.yaml value
 // fails loudly at startup, not silently mid-run.
-func NewIngestDiscoveryTask(app *app.Context, q queue.Queue[workers.IngestJobPayload], cfg lib.IngestConfig) (*IngestDiscoveryTask, error) {
+func NewIngestDiscoveryTask(app *app.Context, q queue.Producer[workers.IngestJobPayload], cfg lib.IngestConfig) (*IngestDiscoveryTask, error) {
 	retryInterval, err := time.ParseDuration(cfg.RetryInterval)
 	if err != nil {
 		return nil, fmt.Errorf("invalid ingest.retry_interval: %w", err)

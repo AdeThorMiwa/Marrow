@@ -14,32 +14,24 @@ import (
 	"marrow/internal/events"
 	model "marrow/internal/model"
 	"marrow/internal/pubsub"
-	"marrow/internal/queue"
 )
 
-// EnrichmentWorker holds the queue it drives plus its capability-specific
-// deps (Transcriber, Embedder, embedding model name) — not app-wide, so
-// they stay as their own fields rather than living on *app.Context. DB pool
-// and event bus come from *app.Context, passed explicitly on each call.
+// EnrichmentWorker holds its capability-specific deps (Transcriber,
+// Embedder, embedding model name) — not app-wide, so they stay as their
+// own fields rather than living on *app.Context. DB pool and event bus
+// come from *app.Context, passed explicitly on each call.
 type EnrichmentWorker struct {
-	Queue       queue.Queue[EnrichmentJobPayload]
 	Transcriber api.Transcriber
 	Embedder    api.Embedder
 	Model       api.EmbeddingModel
 }
 
-func NewEnrichmentWorker(q queue.Queue[EnrichmentJobPayload], transcriber api.Transcriber, embedder api.Embedder, model api.EmbeddingModel) *EnrichmentWorker {
-	return &EnrichmentWorker{Queue: q, Transcriber: transcriber, Embedder: embedder, Model: model}
+func NewEnrichmentWorker(transcriber api.Transcriber, embedder api.Embedder, model api.EmbeddingModel) *EnrichmentWorker {
+	return &EnrichmentWorker{Transcriber: transcriber, Embedder: embedder, Model: model}
 }
 
-// Start wires this worker's ProcessJob handler up to the queue via the
-// generic queue.Worker runner, with the given concurrency.
-func (w *EnrichmentWorker) Start(ctx context.Context, app *app.Context, concurrency int) {
-	queue.NewWorker(app, w.Queue, concurrency, w.ProcessJob).Start(ctx)
-}
-
-func (w *EnrichmentWorker) ProcessJob(ctx context.Context, app *app.Context, job queue.Job[EnrichmentJobPayload]) error {
-	contentID := job.Payload.ContentID
+func (w *EnrichmentWorker) ProcessJob(ctx context.Context, app *app.Context, payload EnrichmentJobPayload) error {
+	contentID := payload.ContentID
 
 	exists, err := dbo.ExistsEnrichedContentByContentID(ctx, app.Pool, contentID)
 	if err != nil {
@@ -150,8 +142,8 @@ func (w *EnrichmentWorker) resolveText(ctx context.Context, content model.Conten
 // OnExhausted is wired as the queue's terminal hook — by this point
 // retries are exhausted; this is the sole place ContentEnrichmentFailed is
 // published.
-func (w *EnrichmentWorker) OnExhausted(ctx context.Context, app *app.Context, job queue.Job[EnrichmentJobPayload], cause error) {
-	contentID := job.Payload.ContentID
+func (w *EnrichmentWorker) OnExhausted(ctx context.Context, app *app.Context, payload EnrichmentJobPayload, cause error) {
+	contentID := payload.ContentID
 	if err := pubsub.Publish(app, events.ContentEnrichmentFailed{
 		ContentID: contentID,
 		Reason:    cause.Error(),

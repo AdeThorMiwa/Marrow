@@ -10,14 +10,9 @@ import (
 	"marrow/internal/events"
 	model "marrow/internal/model"
 	"marrow/internal/pubsub"
-	"marrow/internal/queue"
 	"marrow/internal/testutil"
 	"marrow/internal/workers"
 )
-
-func newJob(payload workers.IngestJobPayload) queue.Job[workers.IngestJobPayload] {
-	return queue.Job[workers.IngestJobPayload]{ID: "job-1", Payload: payload, Attempt: 1, EnqueuedAt: time.Now()}
-}
 
 func TestProcessJob_PersistsNewItemAndPublishesEvent(t *testing.T) {
 	pool := testutil.ConnectDB(t)
@@ -33,8 +28,7 @@ func TestProcessJob_PersistsNewItemAndPublishesEvent(t *testing.T) {
 		return nil
 	})
 
-	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 1})
-	w := workers.NewIngestWorker(q)
+	w := workers.NewIngestWorker()
 
 	url := "https://example.com/article-1"
 	payload := workers.IngestJobPayload{
@@ -48,7 +42,7 @@ func TestProcessJob_PersistsNewItemAndPublishesEvent(t *testing.T) {
 		},
 	}
 
-	if err := w.ProcessJob(context.Background(), a, newJob(payload)); err != nil {
+	if err := w.ProcessJob(context.Background(), a, payload); err != nil {
 		t.Fatalf("ProcessJob failed: %v", err)
 	}
 
@@ -84,8 +78,7 @@ func TestProcessJob_DuplicateURLIsDroppedSilently(t *testing.T) {
 		return nil
 	})
 
-	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 1})
-	w := workers.NewIngestWorker(q)
+	w := workers.NewIngestWorker()
 
 	url := "https://example.com/article-dup"
 	raw := model.RawContent{
@@ -95,10 +88,10 @@ func TestProcessJob_DuplicateURLIsDroppedSilently(t *testing.T) {
 		Metadata: map[string]any{},
 	}
 
-	if err := w.ProcessJob(context.Background(), a, newJob(workers.IngestJobPayload{Source: src, Raw: raw})); err != nil {
+	if err := w.ProcessJob(context.Background(), a, workers.IngestJobPayload{Source: src, Raw: raw}); err != nil {
 		t.Fatalf("first ProcessJob failed: %v", err)
 	}
-	if err := w.ProcessJob(context.Background(), a, newJob(workers.IngestJobPayload{Source: src, Raw: raw})); err != nil {
+	if err := w.ProcessJob(context.Background(), a, workers.IngestJobPayload{Source: src, Raw: raw}); err != nil {
 		t.Fatalf("second ProcessJob (duplicate) failed: %v", err)
 	}
 
@@ -120,21 +113,19 @@ func TestProcessJob_AuthorDedupByName(t *testing.T) {
 
 	pubsub.Subscribe(a, func(ctx context.Context, app *app.Context, e events.ContentIngested) error { return nil })
 
-	q := queue.NewInMemory[workers.IngestJobPayload](queue.InMemoryOptions[workers.IngestJobPayload]{BufferSize: 1})
-	w := workers.NewIngestWorker(q)
+	w := workers.NewIngestWorker()
 
 	author := model.Author{Name: "Shared Author"}
 
-	for i, url := range []string{"https://example.com/a1", "https://example.com/a2"} {
+	for _, url := range []string{"https://example.com/a1", "https://example.com/a2"} {
 		raw := model.RawContent{
 			ID: "native-" + url, Title: "Item",
 			Blocks:  []model.RawContentBlock{{Kind: model.BlockText, Markdown: "body"}},
 			URL:     url, PublishedAt: time.Now(),
 			Authors: []model.Author{author}, Metadata: map[string]any{},
 		}
-		job := newJob(workers.IngestJobPayload{Source: src, Raw: raw})
-		job.ID = "job-" + string(rune('a'+i))
-		if err := w.ProcessJob(context.Background(), a, job); err != nil {
+		payload := workers.IngestJobPayload{Source: src, Raw: raw}
+		if err := w.ProcessJob(context.Background(), a, payload); err != nil {
 			t.Fatalf("ProcessJob failed: %v", err)
 		}
 	}
