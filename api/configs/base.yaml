@@ -35,6 +35,14 @@ feed:
   overfetch_factor: 5
   max_same_source_per_page: 5
 
+auth:
+  token_issuer: marrow
+  access_ttl: 15m
+  refresh_ttl: 720h
+  bcrypt_cost: 12
+  allowed_origin: ""
+
+
 # Deliberately empty — real credentials go in a local, untracked .env
 # (APP_TWITTER_USERNAME / APP_TWITTER_COOKIES), never in a committed config
 # file. See internal/config.go's TwitterConfig doc comment.
