@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"marrow/internal/app"
-	"marrow/internal/database/dbo"
 	"marrow/internal/handler/dto"
 	"marrow/internal/service"
 
@@ -20,7 +19,7 @@ func NewGroupHandler(app *app.Context) *GroupHandler {
 	return &GroupHandler{App: app}
 }
 
-// Create handles POST /groups.
+// Create handles POST /groups — creates a group owned by the requesting user.
 func (h *GroupHandler) Create(c *gin.Context) {
 	var req dto.CreateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -28,7 +27,13 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		return
 	}
 
-	g, err := services.CreateGroup(c.Request.Context(), h.App, req.Name, req.Icon)
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	g, err := services.CreateGroup(c.Request.Context(), h.App, userID, req.Name, req.Icon)
 	if err != nil {
 		internalError(c, err)
 		return
@@ -37,9 +42,16 @@ func (h *GroupHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.FromGroup(g))
 }
 
-// List handles GET /groups.
+// List handles GET /groups — returns the user's "All Sources" default plus
+// their real groups.
 func (h *GroupHandler) List(c *gin.Context) {
-	groups, err := dbo.ListGroups(c.Request.Context(), h.App.Pool)
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	groups, err := services.ListGroups(c.Request.Context(), h.App, userID)
 	if err != nil {
 		internalError(c, err)
 		return
@@ -61,7 +73,13 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		return
 	}
 
-	g, err := services.RenameGroup(c.Request.Context(), h.App, c.Param("id"), req.Name, req.Icon)
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	g, err := services.RenameGroup(c.Request.Context(), h.App, userID, c.Param("id"), req.Name, req.Icon)
 	if err != nil {
 		if errors.Is(err, services.ErrDefaultGroupImmutable) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -76,7 +94,12 @@ func (h *GroupHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /groups/:id.
 func (h *GroupHandler) Delete(c *gin.Context) {
-	if err := services.DeleteGroup(c.Request.Context(), h.App, c.Param("id")); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+	if err := services.DeleteGroup(c.Request.Context(), h.App, userID, c.Param("id")); err != nil {
 		if errors.Is(err, services.ErrDefaultGroupImmutable) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
@@ -96,7 +119,13 @@ func (h *GroupHandler) AddSourceToGroup(c *gin.Context) {
 		return
 	}
 
-	if err := services.AddSourceToGroup(c.Request.Context(), h.App, c.Param("id"), req.GroupID); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	if err := services.AddSourceToGroup(c.Request.Context(), h.App, userID, c.Param("id"), req.GroupID); err != nil {
 		internalError(c, err)
 		return
 	}
@@ -106,7 +135,12 @@ func (h *GroupHandler) AddSourceToGroup(c *gin.Context) {
 
 // RemoveSourceFromGroup handles DELETE /sources/:id/groups/:gid.
 func (h *GroupHandler) RemoveSourceFromGroup(c *gin.Context) {
-	if err := services.RemoveSourceFromGroup(c.Request.Context(), h.App, c.Param("id"), c.Param("gid")); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+	if err := services.RemoveSourceFromGroup(c.Request.Context(), h.App, userID, c.Param("id"), c.Param("gid")); err != nil {
 		if errors.Is(err, services.ErrCannotRemoveFromDefaultGroup) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
@@ -120,7 +154,13 @@ func (h *GroupHandler) RemoveSourceFromGroup(c *gin.Context) {
 
 // ListGroupsForSource handles GET /sources/:id/groups.
 func (h *GroupHandler) ListGroupsForSource(c *gin.Context) {
-	groups, err := dbo.ListGroupsForSource(c.Request.Context(), h.App.Pool, c.Param("id"))
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	groups, err := services.ListGroupsForSource(c.Request.Context(), h.App, userID, c.Param("id"))
 	if err != nil {
 		internalError(c, err)
 		return
@@ -136,7 +176,12 @@ func (h *GroupHandler) ListGroupsForSource(c *gin.Context) {
 
 // Pause / Unpause: see docs/pause-source-group/design.md §5.
 func (h *GroupHandler) Pause(c *gin.Context) {
-	if err := services.PauseGroup(c.Request.Context(), h.App, c.Param("id")); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+	if err := services.PauseGroup(c.Request.Context(), h.App, userID, c.Param("id")); err != nil {
 		if errors.Is(err, services.ErrCannotPauseDefaultGroup) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
@@ -148,7 +193,16 @@ func (h *GroupHandler) Pause(c *gin.Context) {
 }
 
 func (h *GroupHandler) Unpause(c *gin.Context) {
-	if err := services.UnpauseGroup(c.Request.Context(), h.App, c.Param("id")); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+	if err := services.UnpauseGroup(c.Request.Context(), h.App, userID, c.Param("id")); err != nil {
+		if errors.Is(err, services.ErrCannotPauseDefaultGroup) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		internalError(c, err)
 		return
 	}
@@ -157,7 +211,13 @@ func (h *GroupHandler) Unpause(c *gin.Context) {
 
 // ListSourcesForGroup handles GET /groups/:id/sources.
 func (h *GroupHandler) ListSourcesForGroup(c *gin.Context) {
-	sources, err := dbo.ListSourcesForGroup(c.Request.Context(), h.App.Pool, c.Param("id"))
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	sources, err := services.ListSourcesForGroup(c.Request.Context(), h.App, userID, c.Param("id"))
 	if err != nil {
 		internalError(c, err)
 		return

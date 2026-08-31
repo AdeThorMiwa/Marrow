@@ -12,6 +12,7 @@ import (
 	"marrow/internal/app"
 	"marrow/internal/database/dbo"
 	"marrow/internal/handler/dto"
+	model "marrow/internal/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -42,7 +43,13 @@ func NewContentHandler(app *app.Context) *ContentHandler {
 func (h *ContentHandler) Get(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	content, err := dbo.GetContentByID(ctx, h.App.Pool, c.Param("id"))
+	userID, ok := model.UserFromContext(ctx)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	content, err := dbo.GetContentByIDForUser(ctx, h.App.Pool, userID.ID, c.Param("id"))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "content not found"})
@@ -76,7 +83,13 @@ func (h *ContentHandler) Get(c *gin.Context) {
 func (h *ContentHandler) Comments(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	content, err := dbo.GetContentByID(ctx, h.App.Pool, c.Param("id"))
+	userID, ok := model.UserFromContext(ctx)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	content, err := dbo.GetContentByIDForUser(ctx, h.App.Pool, userID.ID, c.Param("id"))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "content not found"})

@@ -127,6 +127,46 @@ func ListSourcesForGroup(ctx context.Context, db DataSource, groupID string) ([]
 	return scanSources(rows)
 }
 
+// ListSourcesForGroupOwned returns the sources in groupID that belong to
+// userID — the group's members intersected with the user's owned sources,
+// guarding against any cross-tenant leakage from a shared source/group row.
+func ListSourcesForGroupOwned(ctx context.Context, db DataSource, userID, groupID string) ([]model.Source, error) {
+	rows, err := db.Query(ctx, `
+		SELECT s.id, s.adapter_id, s.identifier, s.name, s.logo_url, s.last_fetched_at, s.next_poll_at, s.health, s.consecutive_failures, s.consecutive_empty_polls, s.stale_after_seconds, s.failure_reason, s.created_at, s.deleted_at, s.paused
+		FROM sources s
+		JOIN source_groups sg ON sg.source_id = s.id
+		JOIN user_sources us ON us.source_id = s.id AND us.user_id = $1
+		WHERE sg.group_id = $2 AND s.deleted_at IS NULL
+		ORDER BY s.created_at DESC
+	`, userID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanSources(rows)
+}
+
+// ListGroupsForSourceOwned returns the user's groups that contain sourceID
+// (the user's real groups, i.e. via user_groups). The default "All Sources"
+// group is added by the caller.
+func ListGroupsForSourceOwned(ctx context.Context, db DataSource, userID, sourceID string) ([]model.Group, error) {
+	rows, err := db.Query(ctx, `
+		SELECT g.id, g.name, g.icon, g.is_default, g.created_at, g.paused
+		FROM groups g
+		JOIN source_groups sg ON sg.group_id = g.id
+		JOIN user_groups ug ON ug.group_id = g.id AND ug.user_id = $1
+		WHERE sg.source_id = $2
+		ORDER BY g.created_at ASC
+	`, userID, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanGroups(rows)
+}
+
 func scanGroups(rows pgx.Rows) ([]model.Group, error) {
 	var out []model.Group
 	for rows.Next() {

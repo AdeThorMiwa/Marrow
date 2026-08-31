@@ -11,17 +11,20 @@ type AssemblyQuery struct {
 	cursor    *Cursor
 	limit     int
 	sourceIDs []string
+	userID    string
 }
 
 func (q AssemblyQuery) Cursor() *Cursor     { return q.cursor }
 func (q AssemblyQuery) Limit() int          { return q.limit }
 func (q AssemblyQuery) SourceIDs() []string { return q.sourceIDs }
+func (q AssemblyQuery) UserID() string      { return q.userID }
 
 // AssemblyQueryBuilder: see docs/feed-filtering/design.md §2.
 type AssemblyQueryBuilder struct {
 	cursor      *Cursor
 	limit       int
 	sourceIDSet map[string]bool
+	userID      string
 }
 
 func NewAssemblyQueryBuilder() *AssemblyQueryBuilder {
@@ -35,6 +38,11 @@ func (b *AssemblyQueryBuilder) SetCursor(c *Cursor) *AssemblyQueryBuilder {
 
 func (b *AssemblyQueryBuilder) SetLimit(limit int) *AssemblyQueryBuilder {
 	b.limit = limit
+	return b
+}
+
+func (b *AssemblyQueryBuilder) SetUserID(userID string) *AssemblyQueryBuilder {
+	b.userID = userID
 	return b
 }
 
@@ -62,6 +70,7 @@ func (b *AssemblyQueryBuilder) SetGroupIDs(ctx context.Context, db dbo.DataSourc
 
 func (b *AssemblyQueryBuilder) GetCursor() *Cursor { return b.cursor }
 func (b *AssemblyQueryBuilder) GetLimit() int      { return b.limit }
+func (b *AssemblyQueryBuilder) GetUserID() string  { return b.userID }
 func (b *AssemblyQueryBuilder) GetSourceIDs() []string {
 	ids := make([]string, 0, len(b.sourceIDSet))
 	for id := range b.sourceIDSet {
@@ -71,5 +80,5 @@ func (b *AssemblyQueryBuilder) GetSourceIDs() []string {
 }
 
 func (b *AssemblyQueryBuilder) Build() AssemblyQuery {
-	return AssemblyQuery{cursor: b.cursor, limit: b.limit, sourceIDs: b.GetSourceIDs()}
+	return AssemblyQuery{cursor: b.cursor, limit: b.limit, sourceIDs: b.GetSourceIDs(), userID: b.userID}
 }

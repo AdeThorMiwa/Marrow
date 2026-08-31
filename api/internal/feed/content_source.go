@@ -29,7 +29,7 @@ func (s *ContentFeedSource) Produce(ctx context.Context, app *app.Context, query
 		contentID = cursor.ContentID
 	}
 
-	candidates, err := dbo.ListFeedVisibleContents(ctx, app.Pool, createdAt, publishedAt, contentID, overfetch, query.SourceIDs())
+	candidates, err := dbo.ListFeedVisibleContents(ctx, app.Pool, query.UserID(), createdAt, publishedAt, contentID, overfetch, query.SourceIDs())
 	if err != nil {
 		return nil, nil, err
 	}

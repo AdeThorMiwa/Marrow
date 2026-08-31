@@ -16,6 +16,7 @@ import (
 	"marrow/internal/database/dbo"
 	model "marrow/internal/model"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -69,8 +70,11 @@ func ConnectDB(t *testing.T) *pgxpool.Pool {
 	// source_groups references sources — must be TRUNCATEd in the same
 	// statement (Postgres requires every referencing table in one TRUNCATE
 	// unless the FK has ON DELETE CASCADE, which source_id's doesn't — see
-	// docs/source-groups/design.md §1).
-	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, source_groups, sources`); err != nil {
+	// docs/source-groups/design.md §1). The auth membership tables are
+	// likewise referenced from users/sources/groups, so they're TRUNCATEd in
+	// the same statement too, keeping each test hermetically scoped to its
+	// own users.
+	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, source_groups, user_sources, user_groups, refresh_tokens, users, sources`); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
@@ -110,6 +114,21 @@ func SeedSourceWith(t *testing.T, pool *pgxpool.Pool, id, adapterID, identifier 
 	}
 
 	return src
+}
+
+// SeedUser creates a fresh user (unique email) and returns their ID — used by
+// tests that exercise owner-scoping so each test runs against its own account.
+func SeedUser(t *testing.T, pool *pgxpool.Pool) string {
+	t.Helper()
+	user := model.User{
+		ID:          uuid.NewString(),
+		Email:       uuid.NewString() + "@test.example",
+		DisplayName: "Test User",
+	}
+	if err := dbo.InsertUser(context.Background(), pool, user, "unused"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+	return user.ID
 }
 
 func FetchSource(t *testing.T, pool *pgxpool.Pool, id string) model.Source {

@@ -81,3 +81,94 @@ func (a refreshTokenStoreAdapter) RevokeRefreshToken(ctx context.Context, tokenI
 func NewRefreshTokenStore(db DataSource) auth.RefreshTokenStore {
 	return refreshTokenStoreAdapter{db: db}
 }
+
+// InsertUserSource links a Source to its owning user. The Source row itself
+// is shared; ownership is this membership. Idempotent (ON CONFLICT DO NOTHING).
+func InsertUserSource(ctx context.Context, db DataSource, userID, sourceID string) error {
+	_, err := db.Exec(ctx, `
+		INSERT INTO user_sources (user_id, source_id) VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`, userID, sourceID)
+	return err
+}
+
+// HasUserSource reports whether sourceID belongs to userID.
+func HasUserSource(ctx context.Context, db DataSource, userID, sourceID string) (bool, error) {
+	var exists bool
+	err := db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM user_sources WHERE user_id = $1 AND source_id = $2)
+	`, userID, sourceID).Scan(&exists)
+	return exists, err
+}
+
+// ListUserSourceIDs returns the IDs of every Source owned by userID.
+func ListUserSourceIDs(ctx context.Context, db DataSource, userID string) ([]string, error) {
+	rows, err := db.Query(ctx, `SELECT source_id FROM user_sources WHERE user_id = $1 ORDER BY created_at ASC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// GetSourcesByUser returns the full Source rows owned by userID (deleted
+// sources excluded — this backs the source-picker list).
+func GetSourcesByUser(ctx context.Context, db DataSource, userID string) ([]model.Source, error) {
+	rows, err := db.Query(ctx, `
+		SELECT s.id, s.adapter_id, s.identifier, s.name, s.logo_url, s.last_fetched_at, s.next_poll_at, s.health, s.consecutive_failures, s.consecutive_empty_polls, s.stale_after_seconds, s.failure_reason, s.created_at, s.deleted_at, s.paused
+		FROM sources s
+		JOIN user_sources us ON us.source_id = s.id
+		WHERE us.user_id = $1 AND s.deleted_at IS NULL
+		ORDER BY s.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanSources(rows)
+}
+
+// InsertUserGroup links a Group to its owning user. Idempotent
+// (ON CONFLICT DO NOTHING).
+func InsertUserGroup(ctx context.Context, db DataSource, userID, groupID string) error {
+	_, err := db.Exec(ctx, `
+		INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`, userID, groupID)
+	return err
+}
+
+// HasUserGroup reports whether groupID belongs to userID.
+func HasUserGroup(ctx context.Context, db DataSource, userID, groupID string) (bool, error) {
+	var exists bool
+	err := db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM user_groups WHERE user_id = $1 AND group_id = $2)
+	`, userID, groupID).Scan(&exists)
+	return exists, err
+}
+
+// ListGroupsByUser returns the Groups owned by userID. The synthesized
+// default "All Sources" group is computed by the caller, not stored here.
+func ListGroupsByUser(ctx context.Context, db DataSource, userID string) ([]model.Group, error) {
+	rows, err := db.Query(ctx, `
+		SELECT g.id, g.name, g.icon, g.is_default, g.created_at, g.paused
+		FROM groups g
+		JOIN user_groups ug ON ug.group_id = g.id
+		WHERE ug.user_id = $1
+		ORDER BY g.created_at ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanGroups(rows)
+}
