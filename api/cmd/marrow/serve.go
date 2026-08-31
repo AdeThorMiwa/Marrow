@@ -13,6 +13,7 @@ import (
 	"marrow/internal/app"
 	"marrow/internal/auth"
 	"marrow/internal/database"
+	"marrow/internal/database/dbo"
 	"marrow/internal/pubsub"
 	"marrow/internal/queue"
 	"marrow/internal/scheduler"
@@ -51,6 +52,13 @@ func serve(c *lib.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to build auth components: %w", err)
 	}
+
+	authCfg.TokenStore = dbo.NewRefreshTokenStore(pool)
+	refreshTTL, err := time.ParseDuration(c.Auth.RefreshTTL)
+	if err != nil {
+		return fmt.Errorf("invalid auth.refresh_ttl: %w", err)
+	}
+	authCfg.RefreshTokens = auth.NewRefreshTokenService(refreshTTL, authCfg.TokenStore)
 	appCtx.Auth = authCfg
 
 	// Twitter and Instagram are opt-in (unlike Ollama/whisper.cpp, which this

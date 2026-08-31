@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -26,10 +27,15 @@ type RefreshTokenService struct {
 	persist RefreshTokenStore
 }
 
+// RefreshTokenStore is the persistence boundary satisfied by the dbo layer.
+// Every call takes a context (typically the request context) so cancellation
+// propagates through the DB read/write. All lookups use the token's SHA-256
+// hash (never the raw value or the row ID), so the client's one-time raw
+// token is the only credential that ever crosses the wire.
 type RefreshTokenStore interface {
-	InsertRefreshToken(tokenHash, userID, tokenID string, expiresAt time.Time) error
-	GetRefreshToken(tokenHash string) (RefreshToken, error)
-	RevokeRefreshToken(tokenID string) error
+	InsertRefreshToken(ctx context.Context, tokenHash, userID, tokenID string, expiresAt time.Time) error
+	GetRefreshToken(ctx context.Context, tokenHash string) (RefreshToken, error)
+	RevokeRefreshToken(ctx context.Context, tokenID string) (int64, error)
 }
 
 var ErrRefreshTokenInvalid = errors.New("invalid refresh token")
@@ -38,7 +44,7 @@ func NewRefreshTokenService(ttl time.Duration, persist RefreshTokenStore) *Refre
 	return &RefreshTokenService{ttl: ttl, persist: persist}
 }
 
-func (s *RefreshTokenService) Issue(userID string) (*RefreshToken, error) {
+func (s *RefreshTokenService) Issue(ctx context.Context, userID string) (*RefreshToken, error) {
 	raw, err := RandomToken()
 	if err != nil {
 		return nil, err
@@ -48,7 +54,7 @@ func (s *RefreshTokenService) Issue(userID string) (*RefreshToken, error) {
 		return nil, err
 	}
 	expiresAt := time.Now().Add(s.ttl)
-	if err := s.persist.InsertRefreshToken(HashRefreshToken(raw), userID, id, expiresAt); err != nil {
+	if err := s.persist.InsertRefreshToken(ctx, HashRefreshToken(raw), userID, id, expiresAt); err != nil {
 		return nil, err
 	}
 	return &RefreshToken{
@@ -60,8 +66,8 @@ func (s *RefreshTokenService) Issue(userID string) (*RefreshToken, error) {
 	}, nil
 }
 
-func (s *RefreshTokenService) Verify(raw string) (userID, tokenID string, err error) {
-	stored, err := s.persist.GetRefreshToken(HashRefreshToken(raw))
+func (s *RefreshTokenService) Verify(ctx context.Context, raw string) (userID, tokenID string, err error) {
+	stored, err := s.persist.GetRefreshToken(ctx, HashRefreshToken(raw))
 	if err != nil {
 		return "", "", ErrRefreshTokenInvalid
 	}
@@ -69,4 +75,15 @@ func (s *RefreshTokenService) Verify(raw string) (userID, tokenID string, err er
 		return "", "", ErrRefreshTokenInvalid
 	}
 	return stored.UserID, stored.ID, nil
+}
+
+// Revoke marks a token revoked by its row ID. Returns false when the token
+// was already revoked or unknown (a no-op) so callers can distinguish a
+// clean idempotent logout from an unexpected state.
+func (s *RefreshTokenService) Revoke(ctx context.Context, tokenID string) (bool, error) {
+	rows, err := s.persist.RevokeRefreshToken(ctx, tokenID)
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }

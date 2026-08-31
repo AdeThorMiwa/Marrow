@@ -48,6 +48,12 @@ func (m *JWTManager) Issue(u models.User) (string, error) {
 	return tok.SignedString(m.secret)
 }
 
+func (m *JWTManager) Issuer() string { return m.issuer }
+
+// AccessTTL returns the configured access-token lifetime, exposed so
+// handlers can report expires_in to clients.
+func (m *JWTManager) AccessTTL() time.Duration { return m.accessTTL }
+
 // Parse verifies a token's signature, expiry, and issuer, then returns its
 // claims. Any verification failure is collapsed into ErrInvalidToken so
 // callers never distinguish "expired" from "forged" — both mean "re-authenticate".

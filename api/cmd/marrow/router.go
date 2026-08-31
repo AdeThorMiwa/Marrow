@@ -6,18 +6,26 @@ import (
 	"marrow/internal/app"
 	"marrow/internal/feed"
 	"marrow/internal/handler"
+	services "marrow/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 
-	// Permissive CORS — local-only personal app, the Expo web client runs on
-	// a different origin (e.g. localhost:8081 vs 8082) during development.
+	// CORS — the Expo web client runs on a different origin (e.g.
+	// localhost:8081 vs 8082) during development. Allow-Origin is pinned to
+	// the configured client origin when set, falling back to "*" for
+	// backward-compatible local dev; Authorization must be an allowed header
+	// now that authed requests carry a Bearer token.
 	ginApp.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		origin := app.Config.Auth.AllowedOrigin
+		if origin == "" {
+			origin = "*"
+		}
+		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		c.Next()
 	})
 
@@ -35,36 +43,48 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 		})
 	})
 
+	// Public auth endpoints — no token required (register/login create a
+	// session; refresh/logout operate on the refresh token itself, not an
+	// access token).
+	authHandler := handler.NewAuthHandler(services.NewAuthService(app))
+	ginApp.POST("/auth/register", authHandler.Register)
+	ginApp.POST("/auth/login", authHandler.Login)
+	ginApp.POST("/auth/refresh", authHandler.Refresh)
+	ginApp.POST("/auth/logout", authHandler.Logout)
+	ginApp.GET("/me", authHandler.AuthRequired(), authHandler.Me)
+
+	// Everything below requires a valid access token.
+	authed := ginApp.Group("", authHandler.AuthRequired())
+
 	sourceHandler := handler.NewSourceHandler(app)
-	ginApp.POST("/sources/resolve", sourceHandler.Resolve)
-	ginApp.POST("/sources", sourceHandler.Create)
-	ginApp.GET("/sources", sourceHandler.List)
-	ginApp.DELETE("/sources/:id", sourceHandler.Delete)
-	ginApp.POST("/sources/:id/pause", sourceHandler.Pause)
-	ginApp.POST("/sources/:id/unpause", sourceHandler.Unpause)
+	authed.POST("/sources/resolve", sourceHandler.Resolve)
+	authed.POST("/sources", sourceHandler.Create)
+	authed.GET("/sources", sourceHandler.List)
+	authed.DELETE("/sources/:id", sourceHandler.Delete)
+	authed.POST("/sources/:id/pause", sourceHandler.Pause)
+	authed.POST("/sources/:id/unpause", sourceHandler.Unpause)
 
 	groupHandler := handler.NewGroupHandler(app)
-	ginApp.POST("/groups", groupHandler.Create)
-	ginApp.GET("/groups", groupHandler.List)
-	ginApp.PATCH("/groups/:id", groupHandler.Update)
-	ginApp.DELETE("/groups/:id", groupHandler.Delete)
-	ginApp.POST("/sources/:id/groups", groupHandler.AddSourceToGroup)
-	ginApp.DELETE("/sources/:id/groups/:gid", groupHandler.RemoveSourceFromGroup)
-	ginApp.GET("/sources/:id/groups", groupHandler.ListGroupsForSource)
-	ginApp.GET("/groups/:id/sources", groupHandler.ListSourcesForGroup)
-	ginApp.POST("/groups/:id/pause", groupHandler.Pause)
-	ginApp.POST("/groups/:id/unpause", groupHandler.Unpause)
+	authed.POST("/groups", groupHandler.Create)
+	authed.GET("/groups", groupHandler.List)
+	authed.PATCH("/groups/:id", groupHandler.Update)
+	authed.DELETE("/groups/:id", groupHandler.Delete)
+	authed.POST("/sources/:id/groups", groupHandler.AddSourceToGroup)
+	authed.DELETE("/sources/:id/groups/:gid", groupHandler.RemoveSourceFromGroup)
+	authed.GET("/sources/:id/groups", groupHandler.ListGroupsForSource)
+	authed.GET("/groups/:id/sources", groupHandler.ListSourcesForGroup)
+	authed.POST("/groups/:id/pause", groupHandler.Pause)
+	authed.POST("/groups/:id/unpause", groupHandler.Unpause)
 
 	assembler := feed.NewAssembler(&feed.ContentFeedSource{}, &feed.SourceHealthFeedSource{})
 	feedHandler := handler.NewFeedHandler(app, assembler)
-	ginApp.GET("/feed", feedHandler.List)
+	authed.GET("/feed", feedHandler.List)
 
 	contentHandler := handler.NewContentHandler(app)
-	ginApp.GET("/contents/:id", contentHandler.Get)
-	ginApp.GET("/contents/:id/comments", contentHandler.Comments)
+	authed.GET("/contents/:id", contentHandler.Get)
+	authed.GET("/contents/:id/comments", contentHandler.Comments)
 
 	mediaHandler := handler.NewMediaHandler()
-	ginApp.GET("/media/playback-url/*ref", mediaHandler.PlaybackURL)
-	ginApp.GET("/media/proxy/*ref", mediaHandler.Proxy)
-
+	authed.GET("/media/playback-url/*ref", mediaHandler.PlaybackURL)
+	authed.GET("/media/proxy/*ref", mediaHandler.Proxy)
 }
