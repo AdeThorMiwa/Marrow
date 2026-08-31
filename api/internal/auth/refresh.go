@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 type RefreshToken struct {
 	ID        string
 	UserID    string
@@ -23,14 +22,13 @@ func HashRefreshToken(raw string) string {
 }
 
 type RefreshTokenService struct {
-	ttl        time.Duration
-	persist    RefreshTokenStore
+	ttl     time.Duration
+	persist RefreshTokenStore
 }
 
-// RefreshTokenStore is the persistence boundary satisfied by the dbo layer.
 type RefreshTokenStore interface {
-	InsertRefreshToken(rawHash, userID, tokenID string, expiresAt time.Time) error
-	GetRefreshToken(tokenID string) (RefreshToken, error)
+	InsertRefreshToken(tokenHash, userID, tokenID string, expiresAt time.Time) error
+	GetRefreshToken(tokenHash string) (RefreshToken, error)
 	RevokeRefreshToken(tokenID string) error
 }
 
@@ -62,13 +60,13 @@ func (s *RefreshTokenService) Issue(userID string) (*RefreshToken, error) {
 	}, nil
 }
 
-func (s *RefreshTokenService) Verify(raw string) (userID string, err error) {
+func (s *RefreshTokenService) Verify(raw string) (userID, tokenID string, err error) {
 	stored, err := s.persist.GetRefreshToken(HashRefreshToken(raw))
 	if err != nil {
-		return "", ErrRefreshTokenInvalid
+		return "", "", ErrRefreshTokenInvalid
 	}
 	if stored.RevokedAt != nil || time.Now().After(stored.ExpiresAt) {
-		return "", ErrRefreshTokenInvalid
+		return "", "", ErrRefreshTokenInvalid
 	}
-	return stored.UserID, nil
+	return stored.UserID, stored.ID, nil
 }

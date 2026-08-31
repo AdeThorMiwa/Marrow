@@ -11,6 +11,7 @@ import (
 	adapter "marrow/internal/adapter/impl"
 	"marrow/internal/adapter/registry"
 	"marrow/internal/app"
+	"marrow/internal/auth"
 	"marrow/internal/database"
 	"marrow/internal/pubsub"
 	"marrow/internal/queue"
@@ -45,6 +46,12 @@ func serve(c *lib.Config) error {
 
 	appCtx := &app.Context{Pool: pool, Bus: pubsub.New(), Config: c}
 	defer appCtx.Bus.Shutdown()
+
+	authCfg, err := buildAuthComponents(c)
+	if err != nil {
+		return fmt.Errorf("failed to build auth components: %w", err)
+	}
+	appCtx.Auth = authCfg
 
 	// Twitter and Instagram are opt-in (unlike Ollama/whisper.cpp, which this
 	// app always needs) — only registered, and only asserted installed, once
@@ -93,6 +100,34 @@ func serve(c *lib.Config) error {
 	AttachRoutes(ginEngine, appCtx)
 
 	return ginEngine.Run(":" + c.Server.Port)
+}
+
+// buildAuthComponents constructs the auth primitives from config. It builds
+// everything that doesn't require the database connection: the JWT manager,
+// the password hasher, and the (initially empty) OAuth registry. The
+// refresh-token service needs a persistence store, which is wired once the
+// pool is available — see the TokenStore wiring in step 4 (auth endpoints).
+func buildAuthComponents(c *lib.Config) (api.AuthComponents, error) {
+	accessTTL, err := time.ParseDuration(c.Auth.AccessTTL)
+	if err != nil {
+		return api.AuthComponents{}, fmt.Errorf("invalid auth.access_ttl: %w", err)
+	}
+
+	jwt, err := auth.NewJWTManager(c.Auth.JWTSecret, c.Auth.TokenIssuer, accessTTL)
+	if err != nil {
+		return api.AuthComponents{}, err
+	}
+
+	hasher, err := auth.NewPasswordHasher(c.Auth.BcryptCost)
+	if err != nil {
+		return api.AuthComponents{}, err
+	}
+
+	return api.AuthComponents{
+		JWTManager:     jwt,
+		PasswordHasher: hasher,
+		OAuth:          auth.NewOAuthRegistry(),
+	}, nil
 }
 
 // startEnrichment wires the Enrichment worker, its queue, and its
