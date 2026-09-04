@@ -41,9 +41,6 @@ auth:
   refresh_ttl: 720h
   bcrypt_cost: 12
   allowed_origin: ""
-  # Deliberately empty — real values go in a local, untracked .env
-  # (APP_AUTH_GOOGLE_CLIENT_ID / APP_AUTH_GOOGLE_CLIENT_SECRET), never in a
-  # committed config file. See internal/config.go's AuthConfig doc comment.
   google_client_id: ""
   google_client_secret: ""
 

@@ -22,6 +22,7 @@ import (
 	"marrow/internal/workers"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 )
 
@@ -49,20 +50,9 @@ func serve(c *lib.Config) error {
 	appCtx := &app.Context{Pool: pool, Bus: pubsub.New(), Config: c}
 	defer appCtx.Bus.Shutdown()
 
-	authCfg, err := buildAuthComponents(c)
+	authCfg, err := buildAuthComponents(c, pool)
 	if err != nil {
 		return fmt.Errorf("failed to build auth components: %w", err)
-	}
-
-	authCfg.TokenStore = dbo.NewRefreshTokenStore(pool)
-	refreshTTL, err := time.ParseDuration(c.Auth.RefreshTTL)
-	if err != nil {
-		return fmt.Errorf("invalid auth.refresh_ttl: %w", err)
-	}
-	authCfg.RefreshTokens = auth.NewRefreshTokenService(refreshTTL, authCfg.TokenStore)
-
-	if c.Auth.GoogleClientID != "" {
-		authCfg.OAuth.Register(google.NewProvider(c.Auth.GoogleClientID))
 	}
 
 	appCtx.Auth = authCfg
@@ -116,12 +106,7 @@ func serve(c *lib.Config) error {
 	return ginEngine.Run(":" + c.Server.Port)
 }
 
-// buildAuthComponents constructs the auth primitives from config. It builds
-// everything that doesn't require the database connection: the JWT manager,
-// the password hasher, and the (initially empty) OAuth registry. The
-// refresh-token service needs a persistence store, which is wired once the
-// pool is available — see the TokenStore wiring in step 4 (auth endpoints).
-func buildAuthComponents(c *lib.Config) (api.AuthComponents, error) {
+func buildAuthComponents(c *lib.Config, pool *pgxpool.Pool) (api.AuthComponents, error) {
 	accessTTL, err := time.ParseDuration(c.Auth.AccessTTL)
 	if err != nil {
 		return api.AuthComponents{}, fmt.Errorf("invalid auth.access_ttl: %w", err)
@@ -137,10 +122,23 @@ func buildAuthComponents(c *lib.Config) (api.AuthComponents, error) {
 		return api.AuthComponents{}, err
 	}
 
+	tokenStore := dbo.NewRefreshTokenStore(pool)
+	refreshTTL, err := time.ParseDuration(c.Auth.RefreshTTL)
+	if err != nil {
+		return api.AuthComponents{}, fmt.Errorf("invalid auth.refresh_ttl: %w", err)
+	}
+	refreshTokens := auth.NewRefreshTokenService(refreshTTL, tokenStore)
+
+	oauth := auth.NewOAuthRegistry()
+	if c.Auth.GoogleClientID != "" {
+		oauth.Register(google.NewProvider(c.Auth.GoogleClientID))
+	}
+
 	return api.AuthComponents{
 		JWTManager:     jwt,
 		PasswordHasher: hasher,
-		OAuth:          auth.NewOAuthRegistry(),
+		OAuth:          oauth,
+		RefreshTokens:  refreshTokens,
 	}, nil
 }
 

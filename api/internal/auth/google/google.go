@@ -18,8 +18,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Google's OIDC discovery endpoints — kept as constants so the provider
-// never depends on runtime config for issuer validation.
 const (
 	jwksURI    = "https://www.googleapis.com/oauth2/v3/certs"
 	issuerProd = "https://accounts.google.com"

@@ -27,6 +27,5 @@ type AuthComponents struct {
 	JWTManager     *auth.JWTManager
 	PasswordHasher *auth.PasswordHasher
 	OAuth          *auth.OAuthRegistry
-	TokenStore     auth.RefreshTokenStore
 	RefreshTokens  *auth.RefreshTokenService
 }
