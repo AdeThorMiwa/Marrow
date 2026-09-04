@@ -142,6 +142,96 @@ func (s *AuthService) Me(ctx context.Context, userID string) (model.User, error)
 	return u, nil
 }
 
+var ErrOAuthProviderUnavailable = errors.New("oauth provider not configured")
+
+// GoogleLogin accepts a verified Google id_token, links it to an existing
+// account (by email) or creates a new one, and issues a session.
+func (s *AuthService) GoogleLogin(ctx context.Context, idToken string) (model.User, string, string, error) {
+	provider, err := s.App.Auth.OAuth.Get("google")
+	if err != nil {
+		return model.User{}, "", "", ErrOAuthProviderUnavailable
+	}
+
+	identity, err := provider.Exchange(idToken, "")
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+
+	// 1) Already-linked identity → return that user.
+	userID, err := dbo.GetUserByOAuthIdentity(ctx, s.App.Pool, identity.Provider, identity.Subject)
+	if err == nil {
+		return s.loginByID(ctx, userID)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return model.User{}, "", "", err
+	}
+
+	// 2) Existing account with same email → auto-link.
+	email := model.NormalizeEmail(identity.Email)
+	u, _, err := dbo.GetUserByEmail(ctx, s.App.Pool, email)
+	if err == nil {
+		if err := dbo.LinkOAuthIdentity(ctx, s.App.Pool, u.ID, identity.Provider, identity.Subject); err != nil {
+			return model.User{}, "", "", err
+		}
+		return s.loginByID(ctx, u.ID)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return model.User{}, "", "", err
+	}
+
+	// 3) Brand-new user — create + link in a single transaction.
+	displayName := identity.Name
+	if displayName == "" {
+		displayName = email
+	}
+
+	uid := uuid.NewString()
+	err = dbo.WithTx(ctx, s.App.Pool, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO users (id, email, display_name, password_hash)
+			VALUES ($1, $2, $3, NULL)
+		`, uid, email, displayName); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			INSERT INTO oauth_identities (user_id, provider, subject)
+			VALUES ($1, $2, $3)
+		`, uid, identity.Provider, identity.Subject)
+		return err
+	})
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+
+	u = model.User{ID: uid, Email: email, DisplayName: displayName}
+	access, err := s.App.Auth.JWTManager.Issue(u)
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+	refresh, err := s.App.Auth.RefreshTokens.Issue(ctx, u.ID)
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+	return u, access, refresh.Token, nil
+}
+
+// loginByID fetches a user by ID and issues a session.
+func (s *AuthService) loginByID(ctx context.Context, userID string) (model.User, string, string, error) {
+	u, err := dbo.GetUserByID(ctx, s.App.Pool, userID)
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+	access, err := s.App.Auth.JWTManager.Issue(u)
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+	refresh, err := s.App.Auth.RefreshTokens.Issue(ctx, u.ID)
+	if err != nil {
+		return model.User{}, "", "", err
+	}
+	return u, access, refresh.Token, nil
+}
+
 // validateRegistration enforces the account-creation rules. It does not
 // enforce a max password length — bcrypt truncates at 72 bytes, and blocking
 // long passphrases would be hostile — but it does require a non-empty one.
