@@ -56,7 +56,8 @@ func seedUserSource(t *testing.T, pool *pgxpool.Pool, sourceIDs []string) string
 		Email:       uuid.NewString() + "@test.example",
 		DisplayName: "Feed Test",
 	}
-	if err := dbo.InsertUser(ctx, pool, user, "unused"); err != nil {
+	unused := "unused"
+	if err := dbo.InsertUser(ctx, pool, user, &unused); err != nil {
 		t.Fatalf("failed to seed user: %v", err)
 	}
 	for _, sid := range sourceIDs {

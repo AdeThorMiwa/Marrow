@@ -74,7 +74,7 @@ func ConnectDB(t *testing.T) *pgxpool.Pool {
 	// likewise referenced from users/sources/groups, so they're TRUNCATEd in
 	// the same statement too, keeping each test hermetically scoped to its
 	// own users.
-	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, source_groups, user_sources, user_groups, refresh_tokens, users, sources`); err != nil {
+	if _, err := pool.Exec(context.Background(), `TRUNCATE enriched_content, content_authors, content_blocks, contents, authors, source_groups, user_sources, user_groups, oauth_identities, refresh_tokens, users, sources`); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
@@ -125,7 +125,7 @@ func SeedUser(t *testing.T, pool *pgxpool.Pool) string {
 		Email:       uuid.NewString() + "@test.example",
 		DisplayName: "Test User",
 	}
-	if err := dbo.InsertUser(context.Background(), pool, user, "unused"); err != nil {
+	if err := dbo.InsertUser(context.Background(), pool, user, ptrStr("unused")); err != nil {
 		t.Fatalf("failed to seed user: %v", err)
 	}
 	return user.ID
@@ -148,3 +148,5 @@ func FetchSource(t *testing.T, pool *pgxpool.Pool, id string) model.Source {
 	t.Fatalf("source %s not found", id)
 	return model.Source{}
 }
+
+func ptrStr(s string) *string { return &s }

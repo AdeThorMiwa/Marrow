@@ -40,7 +40,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 	}
 
 	u := model.User{ID: uuid.NewString(), Email: email, DisplayName: displayName}
-	if err := dbo.InsertUser(ctx, s.App.Pool, u, hash); err != nil {
+	if err := dbo.InsertUser(ctx, s.App.Pool, u, &hash); err != nil {
 		if dbo.IsUniqueViolation(err) {
 			return model.User{}, "", "", ErrEmailTaken
 		}
@@ -70,7 +70,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (model.
 		}
 		return model.User{}, "", "", err
 	}
-	if err := s.App.Auth.PasswordHasher.Verify(password, hash); err != nil {
+	if hash == nil {
+		return model.User{}, "", "", ErrInvalidCredentials
+	}
+	if err := s.App.Auth.PasswordHasher.Verify(password, *hash); err != nil {
 		if errors.Is(err, auth.ErrInvalidPassword) {
 			return model.User{}, "", "", ErrInvalidCredentials
 		}

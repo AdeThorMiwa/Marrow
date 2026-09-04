@@ -13,13 +13,15 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+func strPtr(s string) *string { return &s }
+
 func TestUsers_InsertAndGetByEmail(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	ctx := context.Background()
 
 	hash := "$2a$04$dummyhash"
 	u := model.User{ID: "user-1", Email: "a@b.com", DisplayName: "Alice"}
-	if err := dbo.InsertUser(ctx, pool, u, hash); err != nil {
+	if err := dbo.InsertUser(ctx, pool, u, &hash); err != nil {
 		t.Fatalf("insert failed: %v", err)
 	}
 
@@ -27,8 +29,8 @@ func TestUsers_InsertAndGetByEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get by email failed: %v", err)
 	}
-	if got.ID != u.ID || got.Email != "a@b.com" || gotHash != hash {
-		t.Fatalf("got %+v (hash %q), want user-1/a@b.com with stored hash", got, gotHash)
+	if got.ID != u.ID || got.Email != "a@b.com" || gotHash == nil || *gotHash != hash {
+		t.Fatalf("got %+v (hash %v), want user-1/a@b.com with stored hash", got, gotHash)
 	}
 }
 
@@ -36,10 +38,12 @@ func TestUsers_InsertDuplicateEmailRejected(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	ctx := context.Background()
 
-	if err := dbo.InsertUser(ctx, pool, model.User{ID: "user-2", Email: "dup@x.com", DisplayName: "One"}, "h1"); err != nil {
+	h1 := "h1"
+	if err := dbo.InsertUser(ctx, pool, model.User{ID: "user-2", Email: "dup@x.com", DisplayName: "One"}, &h1); err != nil {
 		t.Fatalf("first insert failed: %v", err)
 	}
-	err := dbo.InsertUser(ctx, pool, model.User{ID: "user-3", Email: "dup@x.com", DisplayName: "Two"}, "h2")
+	h2 := "h2"
+	err := dbo.InsertUser(ctx, pool, model.User{ID: "user-3", Email: "dup@x.com", DisplayName: "Two"}, &h2)
 	if !dbo.IsUniqueViolation(err) {
 		t.Fatalf("expected unique violation on duplicate email, got %v", err)
 	}
@@ -49,7 +53,8 @@ func TestUsers_GetUserByID(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	ctx := context.Background()
 
-	if err := dbo.InsertUser(ctx, pool, model.User{ID: "user-4", Email: "c@d.com", DisplayName: "Carol"}, "h"); err != nil {
+	h := "h"
+	if err := dbo.InsertUser(ctx, pool, model.User{ID: "user-4", Email: "c@d.com", DisplayName: "Carol"}, &h); err != nil {
 		t.Fatalf("insert failed: %v", err)
 	}
 	got, err := dbo.GetUserByID(ctx, pool, "user-4")
@@ -69,7 +74,7 @@ func TestRefreshTokens_RoundTrip(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	ctx := context.Background()
 
-	if err := dbo.InsertUser(ctx, pool, model.User{ID: "user-r1", Email: "r@x.com", DisplayName: "R"}, "h"); err != nil {
+	if err := dbo.InsertUser(ctx, pool, model.User{ID: "user-r1", Email: "r@x.com", DisplayName: "R"}, strPtr("h")); err != nil {
 		t.Fatalf("insert user failed: %v", err)
 	}
 

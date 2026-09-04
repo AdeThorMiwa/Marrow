@@ -8,16 +8,22 @@ import (
 	model "marrow/internal/model"
 )
 
-func InsertUser(ctx context.Context, db DataSource, u model.User, passwordHash string) error {
+// InsertUser creates a new user row. passwordHash may be nil for OAuth-only
+// accounts that have no local password — the column is nullable in the schema
+// since migration 1789000000.
+func InsertUser(ctx context.Context, db DataSource, u model.User, passwordHash *string) error {
 	_, err := db.Exec(ctx, `
 		INSERT INTO users (id, email, display_name, password_hash)
 		VALUES ($1, $2, $3, $4)
 	`, u.ID, u.Email, u.DisplayName, passwordHash)
 	return err
 }
-func GetUserByEmail(ctx context.Context, db DataSource, email string) (model.User, string, error) {
+
+// GetUserByEmail returns the user, their password_hash (nil for OAuth-only
+// accounts), and any error (including pgx.ErrNoRows if not found).
+func GetUserByEmail(ctx context.Context, db DataSource, email string) (model.User, *string, error) {
 	var u model.User
-	var passwordHash string
+	var passwordHash *string
 	err := db.QueryRow(ctx, `
 		SELECT id, email, display_name, password_hash FROM users WHERE email = $1
 	`, email).Scan(&u.ID, &u.Email, &u.DisplayName, &passwordHash)
