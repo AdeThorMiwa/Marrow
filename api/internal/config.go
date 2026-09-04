@@ -103,6 +103,18 @@ type AuthConfig struct {
 	RefreshTTL   string `mapstructure:"refresh_ttl"`
 	BcryptCost   int    `mapstructure:"bcrypt_cost"`
 	AllowedOrigin string `mapstructure:"allowed_origin"`
+
+	// GoogleClientID is the "audience" an incoming Google id_token must be
+	// issued to — it keys which certs/verification OAuth logins require. When
+	// empty, the Google provider isn't registered (OAuth sign-in is opt-in,
+	// matching the Twitter/Instagram adapter pattern). Set via
+	// APP_AUTH_GOOGLE_CLIENT_ID (env), never in a committed config file.
+	GoogleClientID string `mapstructure:"google_client_id"`
+
+	// GoogleClientSecret is currently unused (the client sends a verified
+	// id_token, so no server-side code exchange happens) but reserved for a
+	// future server-side oauth2.Config.Exchange. Env: APP_AUTH_GOOGLE_CLIENT_SECRET.
+	GoogleClientSecret string `mapstructure:"google_client_secret"`
 }
 
 func Load() (*Config, error) {
