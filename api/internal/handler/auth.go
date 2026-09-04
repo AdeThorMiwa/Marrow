@@ -94,6 +94,26 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *AuthHandler) Google(c *gin.Context) {
+	var req dto.GoogleLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, access, refresh, err := h.Auth.GoogleLogin(c.Request.Context(), req.IDToken)
+	if err != nil {
+		if errors.Is(err, services.ErrOAuthProviderUnavailable) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.writeTokenPair(c, http.StatusOK, user, access, refresh)
+}
+
 func (h *AuthHandler) Me(c *gin.Context) {
 	user, ok := model.UserFromContext(c.Request.Context())
 	if !ok || user.ID == "" {

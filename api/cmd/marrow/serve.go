@@ -12,6 +12,7 @@ import (
 	"marrow/internal/adapter/registry"
 	"marrow/internal/app"
 	"marrow/internal/auth"
+	"marrow/internal/auth/google"
 	"marrow/internal/database"
 	"marrow/internal/database/dbo"
 	"marrow/internal/pubsub"
@@ -59,6 +60,11 @@ func serve(c *lib.Config) error {
 		return fmt.Errorf("invalid auth.refresh_ttl: %w", err)
 	}
 	authCfg.RefreshTokens = auth.NewRefreshTokenService(refreshTTL, authCfg.TokenStore)
+
+	if c.Auth.GoogleClientID != "" {
+		authCfg.OAuth.Register(google.NewProvider(c.Auth.GoogleClientID))
+	}
+
 	appCtx.Auth = authCfg
 
 	// Twitter and Instagram are opt-in (unlike Ollama/whisper.cpp, which this

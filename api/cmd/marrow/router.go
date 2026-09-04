@@ -49,6 +49,7 @@ func AttachRoutes(ginApp *gin.Engine, app *app.Context) {
 	authHandler := handler.NewAuthHandler(services.NewAuthService(app))
 	ginApp.POST("/auth/register", authHandler.Register)
 	ginApp.POST("/auth/login", authHandler.Login)
+	ginApp.POST("/auth/google", authHandler.Google)
 	ginApp.POST("/auth/refresh", authHandler.Refresh)
 	ginApp.POST("/auth/logout", authHandler.Logout)
 	ginApp.GET("/me", authHandler.AuthRequired(), authHandler.Me)
