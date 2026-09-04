@@ -9,7 +9,16 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.adethormiwa.marrow"
+      "bundleIdentifier": "com.adethormiwa.marrow",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.1030635231460-00aptke8mj8mdindfrdctae40t5mrs33"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.adethormiwa.marrow",
@@ -39,7 +48,14 @@
       "expo-video",
       "expo-audio",
       "expo-asset",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "react-native-nitro-google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.1030635231460-00aptke8mj8mdindfrdctae40t5mrs33"
+        }
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

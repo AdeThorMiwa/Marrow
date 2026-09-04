@@ -1,11 +1,17 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button, Text, TextInput } from "@/components/ui";
 import { useAuth } from "@/context/auth-context";
+import { useGoogleWebAuth } from "@/lib/useGoogleWebAuth";
 import { useTheme } from "@/theme/theme-provider";
+// Relative import (not @/ alias): Expo's tsconfig-paths resolver bypasses
+// Metro platform extensions, so "@/lib/google" would load google.ts — with
+// the native Nitro module — even on web. A relative path lets Metro pick
+// google.web.ts on web and google.ts on native.
+import { signInWithGoogleNative } from "../../lib/google";
 
 const DESKTOP_BREAKPOINT = 768;
 
@@ -22,12 +28,15 @@ export default function LoginScreen() {
 	const horizontalInset = isDesktop ? theme.spacing.lg : theme.spacing.md;
 	const columnBorderWidth = isDesktop ? theme.hairlineWidth : 0;
 
-	const { login, register, isLoading } = useAuth();
+	const { login, register, loginWithGoogle, isLoading } = useAuth();
 	const [mode, setMode] = useState<Mode>("login");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [displayName, setDisplayName] = useState("");
 	const [formError, setFormError] = useState<string | null>(null);
+	const [googleLoading, setGoogleLoading] = useState(false);
+	const { webReady, webError, promptWebGoogle } = useGoogleWebAuth();
+	const visibleError = formError ?? webError;
 
 	const switchMode = (next: Mode) => {
 		setMode(next);
@@ -65,6 +74,32 @@ export default function LoginScreen() {
 			);
 		}
 	};
+
+	const onGooglePress = async () => {
+		if (isLoading || googleLoading) return;
+		setFormError(null);
+		setGoogleLoading(true);
+		try {
+			const idToken =
+				Platform.OS === "web"
+					? await promptWebGoogle()
+					: await signInWithGoogleNative();
+			if (!idToken) return;
+			await loginWithGoogle(idToken);
+			router.replace("/");
+		} catch (e) {
+			setFormError(
+				e instanceof Error
+					? e.message
+					: "Google sign-in failed. Please try again.",
+			);
+		} finally {
+			setGoogleLoading(false);
+		}
+	};
+	const googleBusy = isLoading || googleLoading;
+	const googleDisabled =
+		googleBusy || (Platform.OS === "web" && !webReady);
 
 	return (
 		<SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -167,9 +202,9 @@ export default function LoginScreen() {
 							onSubmitEditing={() => void onSubmit()}
 						/>
 
-						{formError ? (
+						{visibleError ? (
 							<Text variant="body" tone="secondary">
-								{formError}
+								{visibleError}
 							</Text>
 						) : null}
 
@@ -179,6 +214,40 @@ export default function LoginScreen() {
 								: mode === "login"
 									? "Log in"
 									: "Create account"}
+						</Button>
+
+						<View
+							style={{
+								flexDirection: "row",
+								alignItems: "center",
+								gap: theme.spacing.md,
+							}}
+						>
+							<View
+								style={{
+									flex: 1,
+									height: theme.hairlineWidth,
+									backgroundColor: theme.colors.divider,
+								}}
+							/>
+							<Text variant="body" tone="secondary">
+								or
+							</Text>
+							<View
+								style={{
+									flex: 1,
+									height: theme.hairlineWidth,
+									backgroundColor: theme.colors.divider,
+								}}
+							/>
+						</View>
+
+						<Button
+							variant="outline"
+							onPress={() => void onGooglePress()}
+							disabled={googleDisabled}
+						>
+							{googleLoading ? "Connecting…" : "Continue with Google"}
 						</Button>
 					</View>
 				</View>

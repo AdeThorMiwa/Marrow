@@ -19,6 +19,7 @@ import {
 import {
 	type AuthUser,
 	login as loginRequest,
+	googleLogin as googleLoginRequest,
 	logoutRemote,
 	refreshTokens,
 	register as registerRequest,
@@ -99,6 +100,7 @@ export type AuthContextValue = {
 		password: string,
 		displayName: string,
 	) => Promise<void>;
+	loginWithGoogle: (idToken: string) => Promise<void>;
 	logout: () => Promise<void>;
 };
 
@@ -174,6 +176,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					e instanceof ApiError
 						? e.message
 						: "Registration failed. Please try again.";
+				setError(message);
+				throw new Error(message);
+			} finally {
+				setIsLoading(false);
+			}
+		},
+		[persistPair],
+	);
+
+	const loginWithGoogle = useCallback(
+		async (idToken: string) => {
+			setIsLoading(true);
+			setError(null);
+			try {
+				await persistPair(await googleLoginRequest(idToken));
+			} catch (e) {
+				const message =
+					e instanceof ApiError
+						? e.message
+						: "Google sign-in failed. Please try again.";
 				setError(message);
 				throw new Error(message);
 			} finally {
@@ -291,9 +313,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			error,
 			login,
 			register,
+			loginWithGoogle,
 			logout,
 		}),
-		[user, isReady, isLoading, error, login, register, logout],
+		[user, isReady, isLoading, error, login, register, loginWithGoogle, logout],
 	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
