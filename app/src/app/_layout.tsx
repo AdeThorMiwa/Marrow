@@ -1,37 +1,60 @@
-import '@/global.css';
+import "@/global.css";
 
 import {
-  SmoochSans_400Regular,
-  SmoochSans_500Medium,
-  SmoochSans_600SemiBold,
-  SmoochSans_700Bold,
-  useFonts,
-} from '@expo-google-fonts/smooch-sans';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+	SmoochSans_400Regular,
+	SmoochSans_500Medium,
+	SmoochSans_600SemiBold,
+	SmoochSans_700Bold,
+	useFonts,
+} from "@expo-google-fonts/smooch-sans";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
 
-import { ThemeProvider } from '@/theme/theme-provider';
+import { AuthProvider, useAuth } from "@/context/auth-context";
+import { ThemeProvider } from "@/theme/theme-provider";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    SmoochSans_400Regular,
-    SmoochSans_500Medium,
-    SmoochSans_600SemiBold,
-    SmoochSans_700Bold,
-  });
+	const [fontsLoaded] = useFonts({
+		SmoochSans_400Regular,
+		SmoochSans_500Medium,
+		SmoochSans_600SemiBold,
+		SmoochSans_700Bold,
+	});
 
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+	return (
+		<ThemeProvider>
+			<AuthProvider>
+				<RootNavigator fontsLoaded={fontsLoaded} />
+			</AuthProvider>
+		</ThemeProvider>
+	);
+}
 
-  if (!fontsLoaded) return null;
+function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
+	const { isReady } = useAuth();
+	const ready = fontsLoaded && isReady;
 
-  return (
-    <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-    </ThemeProvider>
-  );
+	useEffect(() => {
+		if (ready) {
+			SplashScreen.hideAsync().catch(() => {});
+		}
+	}, [ready]);
+
+	if (!ready) return null;
+
+	return (
+		<Stack screenOptions={{ headerShown: false, animation: "none" }}>
+			<Stack.Screen
+				name="(auth)"
+				options={{ headerShown: false, animation: "none" }}
+			/>
+			<Stack.Screen
+				name="(protected)"
+				options={{ headerShown: false, animation: "none" }}
+			/>
+		</Stack>
+	);
 }

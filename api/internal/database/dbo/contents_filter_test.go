@@ -44,15 +44,42 @@ func seedFeedVisibleContent(t *testing.T, pool *pgxpool.Pool, sourceID string) m
 	return content
 }
 
+// seedUserSource creates a fresh user and links them to the given source IDs
+// (via user_sources), returning the user's ID — the owner-scope the feed
+// queries are filtered by.
+func seedUserSource(t *testing.T, pool *pgxpool.Pool, sourceIDs []string) string {
+	t.Helper()
+	ctx := context.Background()
+
+	user := model.User{
+		ID:          uuid.NewString(),
+		Email:       uuid.NewString() + "@test.example",
+		DisplayName: "Feed Test",
+	}
+	unused := "unused"
+	if err := dbo.InsertUser(ctx, pool, user, &unused); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+	for _, sid := range sourceIDs {
+		if err := dbo.InsertUserSource(ctx, pool, user.ID, sid); err != nil {
+			t.Fatalf("failed to link source %s: %v", sid, err)
+		}
+	}
+	return user.ID
+}
+
 func TestListFeedVisibleContents_SourceIDsFilter(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	srcA := testutil.SeedSourceWith(t, pool, "src-a", "substack", "https://a.substack.com")
 	srcB := testutil.SeedSourceWith(t, pool, "src-b", "substack", "https://b.substack.com")
 
+	// Only srcA is owned by this user, so srcB's content must not surface.
+	userID := seedUserSource(t, pool, []string{srcA.ID})
+
 	contentA := seedFeedVisibleContent(t, pool, srcA.ID)
 	seedFeedVisibleContent(t, pool, srcB.ID)
 
-	results, err := dbo.ListFeedVisibleContents(context.Background(), pool, nil, nil, "", 10, []string{srcA.ID})
+	results, err := dbo.ListFeedVisibleContents(context.Background(), pool, userID, nil, nil, "", 10, []string{srcA.ID})
 	if err != nil {
 		t.Fatalf("ListFeedVisibleContents failed: %v", err)
 	}
@@ -65,15 +92,18 @@ func TestListFeedVisibleContents_SourceIDsFilter(t *testing.T) {
 	}
 }
 
-func TestListFeedVisibleContents_NoFilter_ReturnsEverything(t *testing.T) {
+func TestListFeedVisibleContents_NoFilter_ReturnsUserOwned(t *testing.T) {
 	pool := testutil.ConnectDB(t)
 	srcA := testutil.SeedSourceWith(t, pool, "src-c", "substack", "https://c.substack.com")
 	srcB := testutil.SeedSourceWith(t, pool, "src-d", "substack", "https://d.substack.com")
 
+	// This user owns both srcA and srcB, so both surface with no source filter.
+	userID := seedUserSource(t, pool, []string{srcA.ID, srcB.ID})
+
 	seedFeedVisibleContent(t, pool, srcA.ID)
 	seedFeedVisibleContent(t, pool, srcB.ID)
 
-	results, err := dbo.ListFeedVisibleContents(context.Background(), pool, nil, nil, "", 10, nil)
+	results, err := dbo.ListFeedVisibleContents(context.Background(), pool, userID, nil, nil, "", 10, nil)
 	if err != nil {
 		t.Fatalf("ListFeedVisibleContents failed: %v", err)
 	}

@@ -15,6 +15,7 @@ type Config struct {
 	Ingest     IngestConfig     `mapstructure:"ingest"`
 	Enrichment EnrichmentConfig `mapstructure:"enrichment"`
 	Feed       FeedConfig       `mapstructure:"feed"`
+	Auth       AuthConfig       `mapstructure:"auth"`
 	Twitter    TwitterConfig    `mapstructure:"twitter"`
 	Instagram  InstagramConfig  `mapstructure:"instagram"`
 	Redis      RedisConfig      `mapstructure:"redis"`
@@ -93,6 +94,19 @@ type InstagramConfig struct {
 // docs/durable-queue/design.md.
 type RedisConfig struct {
 	Addr string `mapstructure:"addr"`
+}
+
+type AuthConfig struct {
+	JWTSecret      string `mapstructure:"jwt_secret"`
+	TokenIssuer    string `mapstructure:"token_issuer"`
+	AccessTTL      string `mapstructure:"access_ttl"`
+	RefreshTTL     string `mapstructure:"refresh_ttl"`
+	BcryptCost     int    `mapstructure:"bcrypt_cost"`
+	AllowedOrigin  string `mapstructure:"allowed_origin"`
+	GoogleClientID string `mapstructure:"google_client_id"`
+
+	// Not used for now, will be required if we want to use 'resources' like gmail or photos etc
+	GoogleClientSecret string `mapstructure:"google_client_secret"`
 }
 
 func Load() (*Config, error) {

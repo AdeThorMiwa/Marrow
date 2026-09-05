@@ -45,6 +45,38 @@ func GetContentByID(ctx context.Context, db DataSource, id string) (model.Conten
 	return content, nil
 }
 
+// GetContentByIDForUser loads a Content (with blocks) only if it belongs to a
+// Source the given user owns. Returns pgx.ErrNoRows when the content doesn't
+// exist OR isn't one of the user's — so content detail / comments can't leak
+// across tenants. See GetContentByID for the load shape.
+func GetContentByIDForUser(ctx context.Context, db DataSource, userID, id string) (model.Content, error) {
+	var content model.Content
+	var metadata []byte
+
+	err := db.QueryRow(ctx, `
+		SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
+		FROM contents c
+		JOIN user_sources us ON us.source_id = c.source_id AND us.user_id = $1
+		WHERE c.id = $2
+	`, userID, id).Scan(&content.ID, &content.SourceID, &content.URL, &content.Title, &content.Description,
+		&content.PublishedAt, &metadata, &content.CreatedAt)
+	if err != nil {
+		return model.Content{}, err
+	}
+
+	if err := json.Unmarshal(metadata, &content.Metadata); err != nil {
+		return model.Content{}, err
+	}
+
+	blocks, err := ListContentBlocks(ctx, db, id)
+	if err != nil {
+		return model.Content{}, err
+	}
+	content.Blocks = blocks
+
+	return content, nil
+}
+
 // feedCreatedAtBucket truncates CreatedAt to its UTC hour for ordering
 // purposes — see ListFeedVisibleContents' doc comment for why. The double
 // "AT TIME ZONE 'UTC'" is the standard idiom for a timezone-deterministic
@@ -57,60 +89,45 @@ func GetContentByID(ctx context.Context, db DataSource, id string) (model.Conten
 const feedCreatedAtBucket = `date_trunc('hour', c.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`
 
 // ListFeedVisibleContents returns Content that has a matching
-// EnrichedContent row (Feed's readiness criterion), strictly older than
-// the cursor, newest first. Two-level ordering: primarily by CreatedAt
-// truncated to its UTC hour (when it entered our system via Ingest)
-// rather than PublishedAt, so a backlog of old posts pulled in from a
-// newly-added source surfaces together as "new" instead of scattering
-// across the feed by however old the original posts happen to be.
-// Truncating to the hour (not full precision, and not a full day — an
-// earlier version of this bucketed by day, but that let a source with
-// several hours of pent-up backlog bury same-hour-but-actually-newer
-// content from other sources under it) matters here: items from the same
-// Discover() batch get their own CreatedAt assigned individually, at
-// DB-insert time, by a pool of concurrent ingest workers — so their raw
-// timestamps differ by however long that race took and are never actually
-// equal, which would make the PublishedAt tiebreak below never trigger.
-// Truncating to the hour treats everything ingested in the same hour as
-// tied on CreatedAt, so PublishedAt (most recently published first)
-// actually decides the order within that hour, matching what "what's new
-// to me" should mean for a batch of items discovered together.
+// EnrichedContent row (Feed's readiness criterion), belongs to a Source the
+// user owns (scoped via user_sources so each account sees only its own
+// content), optionally narrowed to specific sourceIDs, and is strictly older
+// than the cursor (newest first). See the pre-auth doc comment on this
+// function for the two-level ordering rationale (UTC-hour CreatedAt bucket,
+// then PublishedAt, then id) — unchanged by scoping.
+//
 // cursorCreatedAt == nil means "first page" — no cursor filter. Blocks are
 // NOT populated here; feed.ContentFeedSource batches those separately
 // across the whole candidate set (avoids N+1).
-func ListFeedVisibleContents(ctx context.Context, db DataSource, cursorCreatedAt, cursorPublishedAt *time.Time, cursorContentID string, limit int, sourceIDs []string) ([]model.Content, error) {
+func ListFeedVisibleContents(ctx context.Context, db DataSource, userID string, cursorCreatedAt, cursorPublishedAt *time.Time, cursorContentID string, limit int, sourceIDs []string) ([]model.Content, error) {
 	var rows pgx.Rows
 	var err error
 
+	// The user-scope join is always present; sourceIDs narrows it further.
+	scope := fmt.Sprintf(" AND c.source_id IN (SELECT source_id FROM user_sources WHERE user_id = $%d)", 2)
+	if len(sourceIDs) > 0 {
+		scope += fmt.Sprintf(" AND c.source_id = ANY($%d)", 3)
+	}
+
 	if cursorCreatedAt == nil {
-		args := []any{limit}
-		filter := ""
-		if len(sourceIDs) > 0 {
-			args = append(args, sourceIDs)
-			filter = fmt.Sprintf(" AND c.source_id = ANY($%d)", len(args))
-		}
-		rows, err = db.Query(ctx, `
-			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
-			FROM contents c
-			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)`+filter+`
-			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
-			LIMIT $1
-		`, args...)
-	} else {
-		args := []any{limit, *cursorCreatedAt, *cursorPublishedAt, cursorContentID}
-		filter := ""
-		if len(sourceIDs) > 0 {
-			args = append(args, sourceIDs)
-			filter = fmt.Sprintf(" AND c.source_id = ANY($%d)", len(args))
-		}
 		rows, err = db.Query(ctx, `
 			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
 			FROM contents c
 			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
-			  AND (`+feedCreatedAtBucket+`, c.published_at, c.id) < ($2, $3, $4)`+filter+`
+			  AND c.source_id IN (SELECT source_id FROM user_sources WHERE user_id = $2)`+scope+`
 			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
 			LIMIT $1
-		`, args...)
+		`, limit, userID, sourceIDs)
+	} else {
+		rows, err = db.Query(ctx, `
+			SELECT c.id, c.source_id, c.url, c.title, c.description, c.published_at, c.metadata, c.created_at
+			FROM contents c
+			WHERE EXISTS (SELECT 1 FROM enriched_content ec WHERE ec.content_id = c.id)
+			  AND c.source_id IN (SELECT source_id FROM user_sources WHERE user_id = $2)
+			  AND (`+feedCreatedAtBucket+`, c.published_at, c.id) < ($4, $5, $6)`+scope+`
+			ORDER BY `+feedCreatedAtBucket+` DESC, c.published_at DESC, c.id DESC
+			LIMIT $1
+		`, limit, userID, sourceIDs, *cursorCreatedAt, *cursorPublishedAt, cursorContentID)
 	}
 	if err != nil {
 		return nil, err

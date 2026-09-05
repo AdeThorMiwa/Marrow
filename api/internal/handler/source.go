@@ -6,10 +6,9 @@ import (
 
 	api "marrow/internal/adapter/api"
 	"marrow/internal/app"
-	"marrow/internal/database/dbo"
 	"marrow/internal/handler/dto"
 	model "marrow/internal/model"
-	"marrow/internal/service"
+	services "marrow/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +19,14 @@ type SourceHandler struct {
 
 func NewSourceHandler(app *app.Context) *SourceHandler {
 	return &SourceHandler{App: app}
+}
+
+// userIDFrom extracts the authenticated user's ID, which AuthRequired has
+// placed on the request context. A missing ID means the middleware didn't
+// run — a programming error, not a client condition — so it aborts 401.
+func userIDFrom(c *gin.Context) (string, bool) {
+	user, ok := model.UserFromContext(c.Request.Context())
+	return user.ID, ok
 }
 
 // Resolve handles POST /sources/resolve — turns a raw identifier or share
@@ -50,11 +57,17 @@ func (h *SourceHandler) Resolve(c *gin.Context) {
 }
 
 // Create handles POST /sources — verifies every submitted candidate and, if
-// all are valid, persists them as Sources (Req 1).
+// all are valid, persists them as Sources owned by the requesting user.
 func (h *SourceHandler) Create(c *gin.Context) {
 	var req dto.CreateSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
 		return
 	}
 
@@ -63,7 +76,7 @@ func (h *SourceHandler) Create(c *gin.Context) {
 		configs[i] = s.ToSourceConfig()
 	}
 
-	sources, err := services.AddSources(c.Request.Context(), h.App, configs)
+	sources, err := services.AddSources(c.Request.Context(), h.App, userID, configs)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
@@ -77,9 +90,15 @@ func (h *SourceHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, responses)
 }
 
-// List handles GET /sources — lists all active Sources.
+// List handles GET /sources — lists the requesting user's sources.
 func (h *SourceHandler) List(c *gin.Context) {
-	sources, err := dbo.ListAllSources(c.Request.Context(), h.App.Pool)
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	sources, err := services.ListSources(c.Request.Context(), h.App, userID)
 	if err != nil {
 		internalError(c, err)
 		return
@@ -96,9 +115,14 @@ func (h *SourceHandler) List(c *gin.Context) {
 // Delete handles DELETE /sources/:id — soft-deletes the Source; its Content
 // is deliberately left in place (see services.DeleteSource).
 func (h *SourceHandler) Delete(c *gin.Context) {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
 	id := c.Param("id")
 
-	if err := services.DeleteSource(c.Request.Context(), h.App, id); err != nil {
+	if err := services.DeleteSource(c.Request.Context(), h.App, userID, id); err != nil {
 		if errors.Is(err, services.ErrSourceNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
@@ -112,7 +136,12 @@ func (h *SourceHandler) Delete(c *gin.Context) {
 
 // Pause / Unpause: see docs/pause-source-group/design.md §5.
 func (h *SourceHandler) Pause(c *gin.Context) {
-	if err := services.PauseSource(c.Request.Context(), h.App, c.Param("id")); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+	if err := services.PauseSource(c.Request.Context(), h.App, userID, c.Param("id")); err != nil {
 		internalError(c, err)
 		return
 	}
@@ -120,7 +149,12 @@ func (h *SourceHandler) Pause(c *gin.Context) {
 }
 
 func (h *SourceHandler) Unpause(c *gin.Context) {
-	if err := services.UnpauseSource(c.Request.Context(), h.App, c.Param("id")); err != nil {
+	userID, ok := userIDFrom(c)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+	if err := services.UnpauseSource(c.Request.Context(), h.App, userID, c.Param("id")); err != nil {
 		internalError(c, err)
 		return
 	}

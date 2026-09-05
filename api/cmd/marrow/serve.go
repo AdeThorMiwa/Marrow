@@ -11,7 +11,10 @@ import (
 	adapter "marrow/internal/adapter/impl"
 	"marrow/internal/adapter/registry"
 	"marrow/internal/app"
+	"marrow/internal/auth"
+	"marrow/internal/auth/google"
 	"marrow/internal/database"
+	"marrow/internal/database/dbo"
 	"marrow/internal/pubsub"
 	"marrow/internal/queue"
 	"marrow/internal/scheduler"
@@ -19,6 +22,7 @@ import (
 	"marrow/internal/workers"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 )
 
@@ -45,6 +49,13 @@ func serve(c *lib.Config) error {
 
 	appCtx := &app.Context{Pool: pool, Bus: pubsub.New(), Config: c}
 	defer appCtx.Bus.Shutdown()
+
+	authCfg, err := buildAuthComponents(c, pool)
+	if err != nil {
+		return fmt.Errorf("failed to build auth components: %w", err)
+	}
+
+	appCtx.Auth = authCfg
 
 	// Twitter and Instagram are opt-in (unlike Ollama/whisper.cpp, which this
 	// app always needs) — only registered, and only asserted installed, once
@@ -93,6 +104,42 @@ func serve(c *lib.Config) error {
 	AttachRoutes(ginEngine, appCtx)
 
 	return ginEngine.Run(":" + c.Server.Port)
+}
+
+func buildAuthComponents(c *lib.Config, pool *pgxpool.Pool) (api.AuthComponents, error) {
+	accessTTL, err := time.ParseDuration(c.Auth.AccessTTL)
+	if err != nil {
+		return api.AuthComponents{}, fmt.Errorf("invalid auth.access_ttl: %w", err)
+	}
+
+	jwt, err := auth.NewJWTManager(c.Auth.JWTSecret, c.Auth.TokenIssuer, accessTTL)
+	if err != nil {
+		return api.AuthComponents{}, err
+	}
+
+	hasher, err := auth.NewPasswordHasher(c.Auth.BcryptCost)
+	if err != nil {
+		return api.AuthComponents{}, err
+	}
+
+	tokenStore := dbo.NewRefreshTokenStore(pool)
+	refreshTTL, err := time.ParseDuration(c.Auth.RefreshTTL)
+	if err != nil {
+		return api.AuthComponents{}, fmt.Errorf("invalid auth.refresh_ttl: %w", err)
+	}
+	refreshTokens := auth.NewRefreshTokenService(refreshTTL, tokenStore)
+
+	oauth := auth.NewOAuthRegistry()
+	if c.Auth.GoogleClientID != "" {
+		oauth.Register(google.NewProvider(c.Auth.GoogleClientID))
+	}
+
+	return api.AuthComponents{
+		JWTManager:     jwt,
+		PasswordHasher: hasher,
+		OAuth:          oauth,
+		RefreshTokens:  refreshTokens,
+	}, nil
 }
 
 // startEnrichment wires the Enrichment worker, its queue, and its

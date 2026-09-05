@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -56,7 +57,12 @@ func (h *FeedHandler) List(c *gin.Context) {
 
 // buildQuery: default-group short-circuit — see docs/feed-filtering/design.md §5.
 func (h *FeedHandler) buildQuery(ctx context.Context, cursor *feed.Cursor, limit int, sourceIDsParam, groupIDsParam string) (feed.AssemblyQuery, error) {
-	b := feed.NewAssemblyQueryBuilder().SetCursor(cursor).SetLimit(limit)
+	userID, ok := model.UserFromContext(ctx)
+	if !ok {
+		return feed.AssemblyQuery{}, errors.New("not authenticated")
+	}
+
+	b := feed.NewAssemblyQueryBuilder().SetCursor(cursor).SetLimit(limit).SetUserID(userID.ID)
 
 	sourceIDs := splitNonEmpty(sourceIDsParam)
 	groupIDs := splitNonEmpty(groupIDsParam)
